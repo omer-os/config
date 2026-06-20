@@ -30,7 +30,8 @@ window#waybar {
 #pulseaudio,
 #network,
 #battery,
-#custom-notification {
+#custom-notification,
+#custom-power {
   background: @bg;
   color: @subtext;
   margin: 7px 0;
@@ -113,22 +114,20 @@ window#waybar {
 @keyframes blink { to { color: @red; } }
 #battery.critical:not(.charging) { animation: blink 1s steps(2) infinite alternate; }
 
-/* ── Notifications ───────────────────────────────────────────── */
+/* ── Notification + Power (one island) ───────────────────────── */
 #custom-notification {
-  border-radius: 14px;
+  border-radius: 14px 0 0 14px;
   margin-left: 10px;
-  padding: 0 13px;
+  padding: 0 11px 0 14px;
   color: @subtext;
 }
-#custom-notification:hover { background: @bg-hi; color: @text; }
+#custom-notification:hover { color: @text; }
 
-/* ── Power ───────────────────────────────────────────────────── */
 #custom-power {
-  min-width: 16px;
+  border-radius: 0 14px 14px 0;
+  margin-right: 12px;
+  padding: 0 14px 0 11px;
   color: @red;
-  font-size: 15px;
-  margin: 7px 12px 7px 10px;
-  padding: 0 6px;
   transition: color 0.2s ease;
 }
 #custom-power:hover { color: #eba0ac; }
