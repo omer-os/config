@@ -1,0 +1,33 @@
+# Whitelist approach: ignore everything, then allow only the configs we track.
+# This guarantees browser data, tokens, caches, and session state never get
+# committed by accident.
+
+/*
+
+# Repo meta
+!/.gitignore
+!/README.md
+
+# Tracked configs
+!/waybar/
+!/hypr/
+!/kitty/
+!/cava/
+!/btop/
+!/gtk-3.0/
+!/nwg-displays/
+!/fish/
+!/nvim/
+!/zed/
+!/micro/
+!/lazygit/
+
+# Safety nets in case any secret-bearing files appear inside tracked dirs
+**/*.log
+**/*history*
+**/.env
+**/.env.*
+**/*secret*
+**/*token*
+**/*.key
+**/*.pem
