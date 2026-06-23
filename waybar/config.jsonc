@@ -7,9 +7,18 @@
   "modules-left": ["hyprland/workspaces"],
   "modules-center": ["clock"],
   "modules-right": [
-    "custom/tools", "tray", "pulseaudio", "network", "battery",
+    "custom/language", "custom/tools", "tray", "pulseaudio", "network", "battery",
     "custom/notification", "custom/power"
   ],
+
+  "custom/language": {
+    "format": "{}",
+    "return-type": "json",
+    "exec": "~/.config/waybar/scripts/language.sh",
+    "interval": 2,
+    "signal": 8,
+    "on-click": "~/.config/waybar/scripts/language.sh toggle"
+  },
 
   "hyprland/workspaces": {
     "format": "{id}",

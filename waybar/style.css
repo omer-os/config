@@ -25,6 +25,7 @@ window#waybar {
 #workspaces,
 #clock,
 #custom-media,
+#custom-language,
 #custom-tools,
 #tray,
 #pulseaudio,
@@ -81,6 +82,17 @@ window#waybar {
   padding: 0 20px;
   color: @text;
 }
+
+/* ── Language (EN / AR) ──────────────────────────────────────── */
+#custom-language {
+  min-width: 22px;
+  border-radius: 14px;
+  margin-left: 10px;
+  padding: 0 13px;
+  color: @subtext;
+}
+#custom-language:hover { background: @bg-hi; color: @text; }
+#custom-language.ar    { color: @blue; }
 
 /* ── Tools ───────────────────────────────────────────────────── */
 #custom-tools {

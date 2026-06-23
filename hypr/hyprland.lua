@@ -1,6 +1,7 @@
 hl.on("hyprland.start", function()
 	hl.exec_cmd("waybar")
-	hl.exec_cmd("swww-daemon")
+	hl.exec_cmd("awww-daemon")
+	hl.exec_cmd("$HOME/.config/hypr/scripts/wallpaper.sh restore")
 	hl.exec_cmd("swaync")
 	hl.exec_cmd("wl-paste --watch cliphist store")
 end)
@@ -46,9 +47,16 @@ hl.config({
 		},
 		blur = {
 			enabled = true,
-			size = 8,
+			size = 6,
 			passes = 3,
+			new_optimizations = true,
+			ignore_opacity = true,
+			xray = false,
+			noise = 0.0117,
+			contrast = 0.9,
+			brightness = 0.82,
 			vibrancy = 0.1696,
+			vibrancy_darkness = 0.0,
 		},
 	},
 	animations = {
@@ -108,7 +116,7 @@ hl.config({
 
 hl.config({
 	input = {
-		kb_layout = "us",
+		kb_layout = "us,ara",
 		kb_variant = "",
 		kb_model = "",
 		kb_options = "",
@@ -138,6 +146,11 @@ hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))
 local closeWindowBind = hl.bind(mainMod .. " + W", hl.dsp.window.close())
 
 hl.bind(mainMod .. " + SHIFT + Return", hl.dsp.exec_cmd(browser))
+
+-- Toggle keyboard layout (us <-> ara) via dispatcher to avoid xkb's grp toggle
+-- leaving the Alt modifier stuck after switching. Goes through the waybar
+-- script so the EN/AR indicator refreshes instantly too.
+hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("~/.config/waybar/scripts/language.sh toggle"))
 
 hl.bind(
 	mainMod .. " + M",
@@ -240,3 +253,4 @@ hl.window_rule({
 
 hl.bind(mainMod .. " + SHIFT + D", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/toggle-eDP.sh"))
 hl.bind(mainMod .. " + Z", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/zen.sh"))
+hl.bind(mainMod .. " + SHIFT + W", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/wallpaper.sh"))
