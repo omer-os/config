@@ -1,0 +1,279 @@
+{
+  "React Function Component": {
+    "prefix": "rfc",
+    "body": [
+      "export default function ${1:${TM_FILENAME_BASE}}() {",
+      "  return (",
+      "    <div>$0</div>",
+      "  );",
+      "}"
+    ],
+    "description": "React function component (default export, named after file)"
+  },
+  "React Function Component with Props": {
+    "prefix": "rfcp",
+    "body": [
+      "interface ${1:${TM_FILENAME_BASE}}Props {",
+      "  $2",
+      "}",
+      "",
+      "export default function ${1:${TM_FILENAME_BASE}}({ $3 }: ${1:${TM_FILENAME_BASE}}Props) {",
+      "  return (",
+      "    <div>$0</div>",
+      "  );",
+      "}"
+    ],
+    "description": "React function component with typed props"
+  },
+  "React Wrapper Component with Children": {
+    "prefix": "rfcw",
+    "body": [
+      "export default function ${1:${TM_FILENAME_BASE}}({",
+      "  children,",
+      "}: {",
+      "  children: React.ReactNode;",
+      "}) {",
+      "  return (",
+      "    <div>",
+      "      {children}$0",
+      "    </div>",
+      "  );",
+      "}"
+    ],
+    "description": "Wrapper component that renders children, named after file"
+  },
+  "React Wrapper Component with Children and Props": {
+    "prefix": "rfcwp",
+    "body": [
+      "interface ${1:${TM_FILENAME_BASE}}Props {",
+      "  children: React.ReactNode;",
+      "  $2",
+      "}",
+      "",
+      "export default function ${1:${TM_FILENAME_BASE}}({ children }: ${1:${TM_FILENAME_BASE}}Props) {",
+      "  return (",
+      "    <div>",
+      "      {children}$0",
+      "    </div>",
+      "  );",
+      "}"
+    ],
+    "description": "Wrapper component with children plus extra typed props, named after file"
+  },
+  "React Arrow Function Component": {
+    "prefix": "rafce",
+    "body": [
+      "const ${1:${TM_FILENAME_BASE}} = () => {",
+      "  return (",
+      "    <div>$0</div>",
+      "  );",
+      "};",
+      "",
+      "export default ${1:${TM_FILENAME_BASE}};"
+    ],
+    "description": "React arrow function component with export default"
+  },
+  "useState": {
+    "prefix": "us",
+    "body": [
+      "const [${1:state}, set${2:State}] = useState(${3:initialValue});"
+    ],
+    "description": "useState hook"
+  },
+  "useEffect": {
+    "prefix": "ue",
+    "body": [
+      "useEffect(() => {",
+      "  $1",
+      "}, [$2]);"
+    ],
+    "description": "useEffect hook"
+  },
+  "useEffect with cleanup": {
+    "prefix": "uec",
+    "body": [
+      "useEffect(() => {",
+      "  $1",
+      "  return () => {",
+      "    $2",
+      "  };",
+      "}, [$3]);"
+    ],
+    "description": "useEffect hook with cleanup function"
+  },
+  "useRef": {
+    "prefix": "ur",
+    "body": [
+      "const ${1:ref} = useRef${2:<${3:HTMLDivElement}>}(${4:null});"
+    ],
+    "description": "useRef hook"
+  },
+  "useMemo": {
+    "prefix": "um",
+    "body": [
+      "const ${1:memoized} = useMemo(() => ${2:computeValue()}, [$3]);"
+    ],
+    "description": "useMemo hook"
+  },
+  "useCallback": {
+    "prefix": "ucb",
+    "body": [
+      "const ${1:callback} = useCallback(($2) => {",
+      "  $3",
+      "}, [$4]);"
+    ],
+    "description": "useCallback hook"
+  },
+  "Custom Hook": {
+    "prefix": "uch",
+    "body": [
+      "export function use${1:Name}($2) {",
+      "  $0",
+      "}"
+    ],
+    "description": "Custom hook boilerplate"
+  },
+  "Use Client Directive": {
+    "prefix": "uc",
+    "body": [
+      "\"use client\";",
+      ""
+    ],
+    "description": "Next.js \"use client\" directive"
+  },
+  "Use Server Directive": {
+    "prefix": "usv",
+    "body": [
+      "\"use server\";",
+      ""
+    ],
+    "description": "Next.js \"use server\" directive"
+  },
+  "Next.js Page": {
+    "prefix": "npage",
+    "body": [
+      "export default function ${1:Page}() {",
+      "  return (",
+      "    <main>$0</main>",
+      "  );",
+      "}"
+    ],
+    "description": "Next.js app router page component"
+  },
+  "Next.js Async Page": {
+    "prefix": "napage",
+    "body": [
+      "export default async function ${1:Page}({",
+      "  params,",
+      "}: {",
+      "  params: Promise<{ ${2:slug}: string }>;",
+      "}) {",
+      "  const { ${2:slug} } = await params;",
+      "  return (",
+      "    <main>$0</main>",
+      "  );",
+      "}"
+    ],
+    "description": "Next.js async server page with params"
+  },
+  "Next.js Layout": {
+    "prefix": "rlc",
+    "body": [
+      "export default function ${1:Layout}({",
+      "  children,",
+      "}: {",
+      "  children: React.ReactNode;",
+      "}) {",
+      "  return <>{children}</>;$0",
+      "}"
+    ],
+    "description": "Next.js app router layout component"
+  },
+  "Next.js Loading": {
+    "prefix": "nloading",
+    "body": [
+      "export default function Loading() {",
+      "  return <div>Loading...</div>;$0",
+      "}"
+    ],
+    "description": "Next.js loading.tsx"
+  },
+  "Next.js Error": {
+    "prefix": "nerror",
+    "body": [
+      "\"use client\";",
+      "",
+      "export default function Error({",
+      "  error,",
+      "  reset,",
+      "}: {",
+      "  error: Error & { digest?: string };",
+      "  reset: () => void;",
+      "}) {",
+      "  return (",
+      "    <div>",
+      "      <h2>Something went wrong!</h2>",
+      "      <button onClick={() => reset()}>Try again</button>",
+      "    </div>",
+      "  );",
+      "}"
+    ],
+    "description": "Next.js error.tsx boundary"
+  },
+  "Next.js Route Handler": {
+    "prefix": "nroute",
+    "body": [
+      "import { NextRequest, NextResponse } from \"next/server\";",
+      "",
+      "export async function ${1|GET,POST,PUT,PATCH,DELETE|}(request: NextRequest) {",
+      "  $0",
+      "  return NextResponse.json({});",
+      "}"
+    ],
+    "description": "Next.js app router route handler"
+  },
+  "Next.js Server Action": {
+    "prefix": "nsa",
+    "body": [
+      "\"use server\";",
+      "",
+      "export async function ${1:action}($2) {",
+      "  $0",
+      "}"
+    ],
+    "description": "Next.js server action"
+  },
+  "Next.js Metadata": {
+    "prefix": "nmeta",
+    "body": [
+      "export const metadata: Metadata = {",
+      "  title: \"$1\",",
+      "  description: \"$2\",",
+      "};"
+    ],
+    "description": "Next.js metadata export (import Metadata from \"next\")"
+  },
+  "Map over array in JSX": {
+    "prefix": "jmap",
+    "body": [
+      "{${1:items}.map((${2:item}) => (",
+      "  <${3:div} key={${2:item}.${4:id}}>$0</${3:div}>",
+      "))}"
+    ],
+    "description": "JSX .map() with key"
+  },
+  "Conditional render": {
+    "prefix": "jif",
+    "body": [
+      "{${1:condition} && ($0)}"
+    ],
+    "description": "JSX conditional render"
+  },
+  "Ternary render": {
+    "prefix": "jter",
+    "body": [
+      "{${1:condition} ? ($2) : ($3)}"
+    ],
+    "description": "JSX ternary render"
+  }
+}
