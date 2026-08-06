@@ -1,7 +1,6 @@
 hl.on("hyprland.start", function()
+	hl.exec_cmd("hyprpaper")
 	hl.exec_cmd("waybar")
-	hl.exec_cmd("awww-daemon")
-	hl.exec_cmd("$HOME/.config/hypr/scripts/wallpaper.sh restore")
 	hl.exec_cmd("swaync")
 	hl.exec_cmd("wl-paste --watch cliphist store")
 end)
@@ -23,40 +22,27 @@ hl.env("HYPRCURSOR_SIZE", "24")
 
 hl.config({
 	general = {
-		gaps_in = 5,
-		gaps_out = 10,
-		border_size = 2,
+		gaps_in = 0,
+		gaps_out = 0,
+		border_size = 1,
 		col = {
-			active_border = { colors = { "rgba(33ccffee)", "rgba(00ff99ee)" }, angle = 45 },
-			inactive_border = "rgba(595959aa)",
+			active_border = "rgba(1f8a44ff)",
+			inactive_border = "rgba(0d2415ff)",
 		},
 		resize_on_border = false,
 		allow_tearing = false,
 		layout = "dwindle",
 	},
+	-- Flat and opaque: no blur, no shadows, no transparency, square corners.
 	decoration = {
-		rounding = 12,
-		rounding_power = 2,
-		active_opacity = 0.95,
-		inactive_opacity = 0.85,
+		rounding = 0,
+		active_opacity = 1.0,
+		inactive_opacity = 1.0,
 		shadow = {
-			enabled = true,
-			range = 4,
-			render_power = 3,
-			color = 0xee1a1a1a,
+			enabled = false,
 		},
 		blur = {
-			enabled = true,
-			size = 6,
-			passes = 3,
-			new_optimizations = true,
-			ignore_opacity = true,
-			xray = false,
-			noise = 0.0117,
-			contrast = 0.9,
-			brightness = 0.82,
-			vibrancy = 0.1696,
-			vibrancy_darkness = 0.0,
+			enabled = false,
 		},
 	},
 	animations = {
@@ -64,30 +50,21 @@ hl.config({
 	},
 })
 
-hl.curve("easeOutQuint", { type = "bezier", points = { { 0.23, 1 }, { 0.32, 1 } } })
-hl.curve("easeInOutCubic", { type = "bezier", points = { { 0.65, 0.05 }, { 0.36, 1 } } })
-hl.curve("linear", { type = "bezier", points = { { 0, 0 }, { 1, 1 } } })
-hl.curve("almostLinear", { type = "bezier", points = { { 0.5, 0.5 }, { 0.75, 1 } } })
-hl.curve("quick", { type = "bezier", points = { { 0.15, 0 }, { 0.1, 1 } } })
-hl.curve("easy", { type = "spring", mass = 1, stiffness = 71.2633, dampening = 15.8273644 })
+-- Only windows moving and resizing animate. Everything else -- workspace
+-- switches, opens, closes, fades -- stays instant.
+-- Speeds are in deciseconds, so 2.5 == 250ms.
+hl.curve("smooth", { type = "bezier", points = { { 0.22, 1 }, { 0.36, 1 } } })
 
-hl.animation({ leaf = "global", enabled = true, speed = 10, bezier = "default" })
-hl.animation({ leaf = "border", enabled = true, speed = 5.39, bezier = "easeOutQuint" })
-hl.animation({ leaf = "windows", enabled = true, speed = 4.79, spring = "easy" })
-hl.animation({ leaf = "windowsIn", enabled = true, speed = 4.1, spring = "easy", style = "popin 87%" })
-hl.animation({ leaf = "windowsOut", enabled = true, speed = 1.49, bezier = "linear", style = "popin 87%" })
-hl.animation({ leaf = "fadeIn", enabled = true, speed = 1.73, bezier = "almostLinear" })
-hl.animation({ leaf = "fadeOut", enabled = true, speed = 1.46, bezier = "almostLinear" })
-hl.animation({ leaf = "fade", enabled = true, speed = 3.03, bezier = "quick" })
-hl.animation({ leaf = "layers", enabled = true, speed = 3.81, bezier = "easeOutQuint" })
-hl.animation({ leaf = "layersIn", enabled = true, speed = 4, bezier = "easeOutQuint", style = "fade" })
-hl.animation({ leaf = "layersOut", enabled = true, speed = 1.5, bezier = "linear", style = "fade" })
-hl.animation({ leaf = "fadeLayersIn", enabled = true, speed = 1.79, bezier = "almostLinear" })
-hl.animation({ leaf = "fadeLayersOut", enabled = true, speed = 1.39, bezier = "almostLinear" })
-hl.animation({ leaf = "workspaces", enabled = true, speed = 1.94, bezier = "almostLinear", style = "fade" })
-hl.animation({ leaf = "workspacesIn", enabled = true, speed = 1.21, bezier = "almostLinear", style = "fade" })
-hl.animation({ leaf = "workspacesOut", enabled = true, speed = 1.94, bezier = "almostLinear", style = "fade" })
-hl.animation({ leaf = "zoomFactor", enabled = true, speed = 7, bezier = "quick" })
+hl.animation({ leaf = "global", enabled = true, speed = 2.5, bezier = "smooth" })
+hl.animation({ leaf = "windows", enabled = true, speed = 2.5, bezier = "smooth" })
+hl.animation({ leaf = "windowsMove", enabled = true, speed = 2.5, bezier = "smooth" })
+hl.animation({ leaf = "windowsIn", enabled = false })
+hl.animation({ leaf = "windowsOut", enabled = false })
+hl.animation({ leaf = "workspaces", enabled = false })
+hl.animation({ leaf = "layers", enabled = false })
+hl.animation({ leaf = "fade", enabled = false })
+hl.animation({ leaf = "border", enabled = false })
+hl.animation({ leaf = "borderangle", enabled = false })
 
 hl.config({
 	dwindle = {
@@ -109,8 +86,14 @@ hl.config({
 
 hl.config({
 	misc = {
-		force_default_wallpaper = -1,
-		disable_hyprland_logo = false,
+		-- hyprpaper owns the background now, so the built-in wallpaper and logo
+		-- are off -- otherwise they flash underneath before hyprpaper starts.
+		force_default_wallpaper = 0,
+		disable_hyprland_logo = true,
+		-- Without these, keyboard/mouse resizes and drags snap instantly and
+		-- skip the windowsMove animation entirely.
+		animate_manual_resizes = true,
+		animate_mouse_windowdragging = true,
 	},
 })
 
@@ -152,10 +135,6 @@ hl.bind(mainMod .. " + SHIFT + Return", hl.dsp.exec_cmd(browser))
 -- script so the EN/AR indicator refreshes instantly too.
 hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("~/.config/waybar/scripts/language.sh toggle"))
 
-hl.bind(
-	mainMod .. " + M",
-	hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'")
-)
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(fileManager))
 -- hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(menu))
@@ -179,10 +158,14 @@ hl.bind(mainMod .. " + SHIFT + L", hl.dsp.window.resize({ x = 60, y = 0, relativ
 hl.bind(mainMod .. " + SHIFT + K", hl.dsp.window.resize({ x = 0, y = -60, relative = true }), { repeating = true })
 hl.bind(mainMod .. " + SHIFT + J", hl.dsp.window.resize({ x = 0, y = 60, relative = true }), { repeating = true })
 
+-- Direct workspace switching: ALT+N goes straight to workspace N. workspace.py
+-- keeps workspaces 1..(highest in use) persistent, so clearing a middle
+-- workspace leaves it empty-but-present instead of collapsing the numbering.
+local wsScript = "$HOME/.config/hypr/scripts/workspace.py"
 for i = 1, 10 do
 	local key = i % 10
-	hl.bind(mainMod .. " + " .. key, hl.dsp.focus({ workspace = i }))
-	hl.bind(mainMod .. " + SHIFT + " .. key, hl.dsp.window.move({ workspace = i }))
+	hl.bind(mainMod .. " + " .. key, hl.dsp.exec_cmd(wsScript .. " focus " .. i))
+	hl.bind(mainMod .. " + SHIFT + " .. key, hl.dsp.exec_cmd(wsScript .. " move " .. i))
 end
 
 -- ALT + S saves the recording if one is running, otherwise takes a screenshot.
@@ -244,6 +227,17 @@ hl.window_rule({
 	no_focus = true,
 })
 
+-- Waydroid renders Android at the fixed resolution set in waydroid.sh and
+-- can't reflow, so stretching it to fill a tile would just crop the phone
+-- screen. Pseudotiling keeps it in the tiling layout -- it still takes its
+-- slot and everything else tiles around it -- while rendering at exactly the
+-- size Android asks for.
+hl.window_rule({
+	name = "pseudo-waydroid",
+	match = { class = "^Waydroid$" },
+	pseudo = true,
+})
+
 hl.window_rule({
 	name = "move-hyprland-run",
 	match = { class = "hyprland-run" },
@@ -252,5 +246,5 @@ hl.window_rule({
 })
 
 hl.bind(mainMod .. " + SHIFT + D", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/toggle-eDP.sh"))
-hl.bind(mainMod .. " + Z", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/zen.sh"))
-hl.bind(mainMod .. " + SHIFT + W", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/wallpaper.sh"))
+hl.bind(mainMod .. " + SHIFT + W", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/win11.sh"))
+hl.bind(mainMod .. " + SHIFT + A", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/waydroid.sh"))

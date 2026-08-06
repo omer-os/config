@@ -1,15 +1,128 @@
 {
   "layer": "top",
   "position": "top",
-  "height": 40,
+  "height": 32,
   "spacing": 0,
 
-  "modules-left": ["hyprland/workspaces"],
+  "modules-left": ["custom/workspaces"],
   "modules-center": ["clock"],
   "modules-right": [
-    "custom/language", "custom/tools", "tray", "pulseaudio", "network", "battery",
-    "custom/notification", "custom/power"
+    "custom/media",
+    "backlight",
+    "pulseaudio",
+    "bluetooth",
+    "network",
+    "battery",
+    "custom/language",
+    "tray",
+    "custom/notification",
+    "custom/power"
   ],
+
+  // ── Workspaces (live window titles, direct ALT+N) ──────────────────
+  "custom/workspaces": {
+    "format": "{}",
+    "return-type": "json",
+    "exec": "~/.config/waybar/scripts/workspaces.py",
+    "escape": false,
+    "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"",
+    "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\""
+  },
+
+  // ── Now playing ────────────────────────────────────────────────────
+  "custom/media": {
+    "format": "{}",
+    "return-type": "json",
+    "exec": "~/.config/waybar/scripts/media.sh",
+    "interval": 2,
+    "escape": false,
+    "max-length": 45,
+    "on-click": "playerctl play-pause",
+    "on-click-right": "playerctl next",
+    "on-scroll-up": "playerctl next",
+    "on-scroll-down": "playerctl previous"
+  },
+
+  "clock": {
+    "format": "{:%H:%M}",
+    "tooltip-format": "<tt>{calendar}</tt>",
+    "calendar": {
+      "mode": "month",
+      "on-scroll": 1,
+      "format": {
+        "months":   "<span color='#35c95a'><b>{}</b></span>",
+        "days":     "<span color='#35c95a'>{}</span>",
+        "weekdays": "<span color='#00ff5f'><b>{}</b></span>",
+        "today":    "<span color='#00ff5f'><b>{}</b></span>"
+      }
+    },
+    "actions": {
+      "on-click-right": "mode",
+      "on-scroll-up": "shift_up",
+      "on-scroll-down": "shift_down"
+    }
+  },
+
+  // ── Brightness: icon only, scroll to change ────────────────────────
+  "backlight": {
+    "device": "nvidia_0",
+    "format": "󰃠",
+    "tooltip-format": "Brightness {percent}%",
+    "on-scroll-up": "brightnessctl -e4 -n2 set 5%+",
+    "on-scroll-down": "brightnessctl -e4 -n2 set 5%-"
+  },
+
+  // ── Volume: icon only, reflects level / mute, scroll to change ──────
+  "pulseaudio": {
+    "format": "{icon}",
+    "format-muted": "󰖁",
+    "format-icons": {
+      "headphone": "󰋋",
+      "hands-free": "󰋋",
+      "headset": "󰋋",
+      "default": ["󰕿", "󰖀", "󰕾"]
+    },
+    "scroll-step": 5,
+    "tooltip-format": "{desc}   {volume}%",
+    "on-click": "pavucontrol",
+    "on-click-right": "pactl set-sink-mute @DEFAULT_SINK@ toggle"
+  },
+
+  // ── Bluetooth: icon only ───────────────────────────────────────────
+  "bluetooth": {
+    "format": "󰂯",
+    "format-disabled": "󰂲",
+    "format-off": "󰂲",
+    "format-connected": "󰂱",
+    "tooltip-format": "{controller_alias}\n{status}",
+    "tooltip-format-connected": "{controller_alias}\n{num_connections} connected\n{device_enumerate}",
+    "tooltip-format-enumerate-connected": "{device_alias}",
+    "on-click": "blueman-manager"
+  },
+
+  // ── Network: name only, nothing else ───────────────────────────────
+  "network": {
+    "format-wifi": "{essid}",
+    "format-ethernet": "{ifname}",
+    "format-linked": "{ifname}",
+    "format-disconnected": "offline",
+    "max-length": 16,
+    "tooltip-format-wifi": "{essid}   {signalStrength}%\n{ipaddr}",
+    "tooltip-format-ethernet": "{ifname}   {ipaddr}",
+    "tooltip-format-disconnected": "No connection",
+    "on-click": "nm-connection-editor",
+    "on-click-right": "kitty --class nmtui-float -e nmtui"
+  },
+
+  // ── Battery: charge-level icon + charging icon ─────────────────────
+  "battery": {
+    "states": { "good": 80, "warning": 30, "critical": 15 },
+    "format": "{icon} {capacity}%",
+    "format-charging": "󰂄 {capacity}%",
+    "format-plugged": "󰂄 {capacity}%",
+    "format-icons": ["󰂎", "󰁺", "󰁼", "󰁾", "󰂀", "󰁹"],
+    "tooltip-format": "{capacity}%   {timeTo}"
+  },
 
   "custom/language": {
     "format": "{}",
@@ -20,97 +133,20 @@
     "on-click": "~/.config/waybar/scripts/language.sh toggle"
   },
 
-  "hyprland/workspaces": {
-    "format": "{id}",
-    "sort-by-number": true,
-    "persistent-workspaces": { "*": 6 },
-    "ignore-workspaces": ["special", ".*[^0-9].*"],
-    "on-scroll-up": "hyprctl dispatch workspace e+1",
-    "on-scroll-down": "hyprctl dispatch workspace e-1"
-  },
-
-  "custom/media": {
-    "format": "{}",
-    "return-type": "json",
-    "exec": "~/.config/waybar/scripts/media.sh",
-    "interval": 2,
-    "max-length": 42,
-    "escape": true,
-    "on-click": "playerctl play-pause",
-    "on-scroll-up": "playerctl next",
-    "on-scroll-down": "playerctl previous"
-  },
-
-  "clock": {
-    "format": "{:%I:%M %p   %a %d %b}",
-    "tooltip-format": "<tt>{calendar}</tt>",
-    "calendar": {
-      "mode": "month",
-      "on-scroll": 1,
-      "format": {
-        "months":   "<span color='#cdd6f4'><b>{}</b></span>",
-        "days":     "<span color='#cdd6f4'>{}</span>",
-        "weekdays": "<span color='#89b4fa'><b>{}</b></span>",
-        "today":    "<span color='#89b4fa'><b>{}</b></span>"
-      }
-    },
-    "actions": {
-      "on-click-right": "mode",
-      "on-scroll-up": "shift_up",
-      "on-scroll-down": "shift_down"
-    }
-  },
-
-  "custom/tools": {
-    "format": "",
-    "tooltip": false,
-    "on-click": "~/.config/waybar/scripts/tools-menu.sh"
-  },
-
-  "tray": { "spacing": 8 },
-
-  "pulseaudio": {
-    "format": "{icon} {volume}%",
-    "format-muted": "󰝟",
-    "format-icons": { "default": ["", "", ""] },
-    "tooltip-format": "{desc}   {volume}%",
-    "scroll-step": 5,
-    "on-click": "pavucontrol",
-    "on-click-right": "pactl set-sink-mute @DEFAULT_SINK@ toggle"
-  },
-
-  "network": {
-    "format-wifi": "",
-    "format-ethernet": "󰈀",
-    "format-disconnected": "󰖪",
-    "tooltip-format-wifi": "{essid}   {signalStrength}%\n{ipaddr}",
-    "tooltip-format-ethernet": "{ifname}   {ipaddr}",
-    "tooltip-format-disconnected": "Disconnected",
-    "on-click": "nm-connection-editor",
-    "on-click-right": "kitty --class nmtui-float -e nmtui"
-  },
-
-  "battery": {
-    "states": { "warning": 30, "critical": 15 },
-    "format": "{icon} {capacity}%",
-    "format-charging": " {capacity}%",
-    "format-plugged": " {capacity}%",
-    "format-icons": ["", "", "", "", ""],
-    "tooltip-format": "{capacity}%   {timeTo}"
-  },
+  "tray": { "spacing": 10 },
 
   "custom/notification": {
     "tooltip": false,
     "format": "{icon}",
     "format-icons": {
-      "notification": "<span foreground='#f38ba8'></span>",
-      "none": "<span foreground='#a6adc8'></span>",
-      "dnd-notification": "<span foreground='#f38ba8'></span>",
-      "dnd-none": "<span foreground='#a6adc8'></span>",
-      "inhibited-notification": "<span foreground='#f38ba8'></span>",
-      "inhibited-none": "<span foreground='#a6adc8'></span>",
-      "dnd-inhibited-notification": "<span foreground='#f38ba8'></span>",
-      "dnd-inhibited-none": "<span foreground='#a6adc8'></span>"
+      "notification": "<span foreground='#00ff5f'></span>",
+      "none": "<span foreground='#1c6b33'></span>",
+      "dnd-notification": "<span foreground='#00ff5f'></span>",
+      "dnd-none": "<span foreground='#1c6b33'></span>",
+      "inhibited-notification": "<span foreground='#00ff5f'></span>",
+      "inhibited-none": "<span foreground='#1c6b33'></span>",
+      "dnd-inhibited-notification": "<span foreground='#00ff5f'></span>",
+      "dnd-inhibited-none": "<span foreground='#1c6b33'></span>"
     },
     "return-type": "json",
     "exec": "swaync-client -swb",
