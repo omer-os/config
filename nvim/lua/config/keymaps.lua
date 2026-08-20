@@ -1,11 +1,3 @@
-return {
-  "nvim-treesitter/nvim-treesitter",
-  build = ":TSUpdate",
-  event = { "BufReadPost", "BufNewFile" },
-  opts = {
-    ensure_installed = { "svelte", "typescript", "javascript", "html", "css" },
-    highlight = {
-      enable = true,
-    },
-  },
-}
+-- Keymaps are automatically loaded on the VeryLazy event
+-- Default keymaps that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/keymaps.lua
+-- Add any additional keymaps here

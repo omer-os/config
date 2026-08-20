@@ -37,11 +37,6 @@ window#waybar {
   padding: 0 12px;
 }
 
-/* ── Now playing ─────────────────────────────────────────────── */
-#custom-media           { color: @subtext; padding: 0 8px; }
-#custom-media.playing   { color: @text; }
-#custom-media.paused    { color: @muted; }
-
 /* ── Right-side modules (flat) ───────────────────────────────── */
 #backlight,
 #pulseaudio,

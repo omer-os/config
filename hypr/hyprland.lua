@@ -137,10 +137,13 @@ hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("~/.config/waybar/scripts/languag
 
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(fileManager))
 -- hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }))
+hl.bind(mainMod .. " + F", hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(menu))
 -- Pauses the recording if one is running, otherwise falls back to pseudo.
 hl.bind(mainMod .. " + P", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/screenrecord.sh pause"))
 hl.bind(mainMod .. " + T", hl.dsp.layout("togglesplit"))
+-- Zen mode: hide waybar and window borders for distraction-free focus.
+hl.bind(mainMod .. " + Z", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/zen.sh"))
 
 hl.bind(mainMod .. " + H", hl.dsp.focus({ direction = "left" }))
 hl.bind(mainMod .. " + L", hl.dsp.focus({ direction = "right" }))
@@ -227,15 +230,26 @@ hl.window_rule({
 	no_focus = true,
 })
 
--- Waydroid renders Android at the fixed resolution set in waydroid.sh and
--- can't reflow, so stretching it to fill a tile would just crop the phone
--- screen. Pseudotiling keeps it in the tiling layout -- it still takes its
--- slot and everything else tiles around it -- while rendering at exactly the
--- size Android asks for.
+-- Waydroid picks its resolution when the session starts and never renegotiates,
+-- so the window has to sit at exactly that size or Android gets scaled and
+-- goes soft. This used to be pseudotiled, which is what made the width reset
+-- when the phone was moved around: Hyprland rescales a pseudotiled window to
+-- fit whatever tile it lands in, so a busier workspace shrank it. Floating
+-- keeps the size fixed wherever it is dragged.
+--
+-- The two marked lines are rewritten by "waydroid.sh size", which also sets
+-- persist.waydroid.{width,height} and restarts the session so Android actually
+-- re-renders at the new size. Both have to stay in agreement -- edit via that
+-- command rather than by hand.
 hl.window_rule({
-	name = "pseudo-waydroid",
+	name = "waydroid-phone",
 	match = { class = "^Waydroid$" },
-	pseudo = true,
+
+	float = true,
+	size = "446 966", -- waydroid-size
+	move = "monitor_w-466 32", -- waydroid-move
+	keep_aspect_ratio = true,
+	no_max_size = true,
 })
 
 hl.window_rule({
@@ -248,3 +262,4 @@ hl.window_rule({
 hl.bind(mainMod .. " + SHIFT + D", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/toggle-eDP.sh"))
 hl.bind(mainMod .. " + SHIFT + W", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/win11.sh"))
 hl.bind(mainMod .. " + SHIFT + A", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/waydroid.sh"))
+hl.bind(mainMod .. " + SHIFT + P", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/waydroid.sh size"))

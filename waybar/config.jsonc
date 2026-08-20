@@ -7,7 +7,6 @@
   "modules-left": ["custom/workspaces"],
   "modules-center": ["clock"],
   "modules-right": [
-    "custom/media",
     "backlight",
     "pulseaudio",
     "bluetooth",
@@ -27,20 +26,6 @@
     "escape": false,
     "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"",
     "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\""
-  },
-
-  // ── Now playing ────────────────────────────────────────────────────
-  "custom/media": {
-    "format": "{}",
-    "return-type": "json",
-    "exec": "~/.config/waybar/scripts/media.sh",
-    "interval": 2,
-    "escape": false,
-    "max-length": 45,
-    "on-click": "playerctl play-pause",
-    "on-click-right": "playerctl next",
-    "on-scroll-up": "playerctl next",
-    "on-scroll-down": "playerctl previous"
   },
 
   "clock": {
@@ -107,8 +92,8 @@
     "format-linked": "{ifname}",
     "format-disconnected": "offline",
     "max-length": 16,
-    "tooltip-format-wifi": "{essid}   {signalStrength}%\n{ipaddr}",
-    "tooltip-format-ethernet": "{ifname}   {ipaddr}",
+    "tooltip-format-wifi": "{essid}   {signalStrength}%",
+    "tooltip-format-ethernet": "{ifname}   connected",
     "tooltip-format-disconnected": "No connection",
     "on-click": "nm-connection-editor",
     "on-click-right": "kitty --class nmtui-float -e nmtui"
