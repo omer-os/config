@@ -90,6 +90,7 @@ window#waybar {
 #custom-language,
 #custom-recording,
 #custom-update,
+#custom-kill,
 #custom-phone,
 #custom-claude,
 #tray,
@@ -140,6 +141,11 @@ window#waybar {
    in the warn shade so it reads as "attention" but not "alarm". */
 #custom-update.due  { color: @warn; font-weight: 600; }
 #custom-update.idle { padding: 0; }
+
+/* ── Kill button: quiet until hovered, then reads as danger. */
+#custom-kill        { color: @muted; }
+#custom-kill.on     { color: @subtext; }
+#custom-kill:hover  { color: @crit; }
 
 @keyframes recording-pulse {
   0%   { color: @crit; }

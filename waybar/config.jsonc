@@ -16,6 +16,7 @@
   "modules-right": [
     "custom/recording",
     "custom/update",
+    "custom/kill",
     "custom/phone",
     "custom/claude",
     "privacy",
@@ -155,6 +156,19 @@
     "escape": false,
     "on-click": "~/.config/waybar/scripts/update.sh run",
     "on-click-right": "~/.config/waybar/scripts/update.sh snooze"
+  },
+
+  // ── Kill: force-stop stuck windows, dev servers, the VM, Waydroid ──
+  "custom/kill": {
+    "format": "{}",
+    "return-type": "json",
+    "exec": "~/.config/waybar/scripts/kill.sh status",
+    "interval": 10,
+    "signal": 13,
+    "escape": false,
+    "on-click": "~/.config/waybar/scripts/kill.sh menu",
+    "on-click-right": "~/.config/waybar/scripts/kill.sh focused",
+    "on-click-middle": "~/.config/waybar/scripts/kill.sh all"
   },
 
   // ── Phone: one click pushes the clipboard to the paired phone ──────
