@@ -2,7 +2,7 @@
 # Whole-screen recording, driven from Hyprland binds:
 #   ALT+SHIFT+R  start (or stop, if already recording)
 #   ALT+P        pause/resume  -- otherwise falls through to `pseudo`
-#   ALT+S        stop and save -- otherwise falls through to hyprshot
+#   ALT+S        stop and save -- otherwise falls through to screenshot.sh
 #
 # The fallthrough is the point: ALT+P and ALT+S keep their normal jobs
 # unless a recording is genuinely live.
@@ -13,6 +13,8 @@ runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
 pid_file="$runtime_dir/screenrecord.pid"
 path_file="$runtime_dir/screenrecord.path"
 pause_file="$runtime_dir/screenrecord.paused"
+start_file="$runtime_dir/screenrecord.started"
+paused_total_file="$runtime_dir/screenrecord.paused_total"
 log_file="$runtime_dir/screenrecord.log"
 out_dir="$HOME/Videos/recordings"
 framerate=60
@@ -38,7 +40,30 @@ recorder_pid() {
 }
 
 clear_state() {
-	rm -f "$pid_file" "$path_file" "$pause_file"
+	rm -f "$pid_file" "$path_file" "$pause_file" "$start_file" "$paused_total_file"
+}
+
+# Seconds of actual recording so far: wall time since start, minus every
+# stretch spent paused (including the one currently open, if any).
+elapsed() {
+	local started paused_total now
+	started=$(cat "$start_file" 2>/dev/null) || return 1
+	[[ $started =~ ^[0-9]+$ ]] || return 1
+	paused_total=$(cat "$paused_total_file" 2>/dev/null)
+	[[ $paused_total =~ ^[0-9]+$ ]] || paused_total=0
+	now=$(date +%s)
+
+	if [[ -r $pause_file ]]; then
+		local pause_started
+		pause_started=$(<"$pause_file")
+		if [[ $pause_started =~ ^[0-9]+$ ]]; then
+			paused_total=$((paused_total + now - pause_started))
+		fi
+	fi
+
+	local secs=$((now - started - paused_total))
+	((secs < 0)) && secs=0
+	printf '%s' "$secs"
 }
 
 start() {
@@ -62,6 +87,8 @@ start() {
 	local pid=$!
 	printf '%s' "$pid" >"$pid_file"
 	printf '%s' "$out" >"$path_file"
+	date +%s >"$start_file"
+	printf '0' >"$paused_total_file"
 
 	# It can die instantly on a bad capture target; report that rather than
 	# leaving the user to discover ALT+S does nothing.
@@ -78,11 +105,20 @@ start() {
 toggle_pause() {
 	local pid=$1
 	kill -USR2 "$pid" || return 1
-	if [[ -e $pause_file ]]; then
+	if [[ -r $pause_file ]]; then
+		# Fold the stretch we just spent paused into the running total.
+		local pause_started paused_total
+		pause_started=$(<"$pause_file")
+		paused_total=$(cat "$paused_total_file" 2>/dev/null)
+		[[ $paused_total =~ ^[0-9]+$ ]] || paused_total=0
+		if [[ $pause_started =~ ^[0-9]+$ ]]; then
+			printf '%s' "$((paused_total + $(date +%s) - pause_started))" \
+				>"$paused_total_file"
+		fi
 		rm -f "$pause_file"
 		notify "Recording resumed"
 	else
-		: >"$pause_file"
+		date +%s >"$pause_file"
 		notify "Recording paused"
 	fi
 }
@@ -94,7 +130,7 @@ save() {
 
 	# Finalising from a paused encoder is asking for a truncated file;
 	# resume first, then stop.
-	if [[ -e $pause_file ]]; then
+	if [[ -r $pause_file ]]; then
 		kill -USR2 "$pid" 2>/dev/null
 		sleep 0.3
 	fi
@@ -139,19 +175,22 @@ save)
 	if pid=$(recorder_pid); then
 		save "$pid"
 	else
-		hyprshot -m region
+		"$HOME/.config/hypr/scripts/screenshot.sh" region
 	fi
 	;;
 status)
-	# For a waybar module, if you ever want one.
 	if recorder_pid >/dev/null; then
-		[[ -e $pause_file ]] && echo paused || echo recording
+		[[ -r $pause_file ]] && echo paused || echo recording
 	else
 		echo idle
 	fi
 	;;
+elapsed)
+	# Seconds recorded so far, or nothing at all when idle.
+	recorder_pid >/dev/null && elapsed
+	;;
 *)
-	echo "usage: ${0##*/} {toggle|start|pause|save|status}" >&2
+	echo "usage: ${0##*/} {toggle|start|pause|save|status|elapsed}" >&2
 	exit 2
 	;;
 esac

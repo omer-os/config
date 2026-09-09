@@ -11,6 +11,10 @@
 # Tracked configs
 !/waybar/
 !/hypr/
+!/swappy/
+!/swaync/
+!/swayosd/
+!/wlogout/
 !/kitty/
 !/cava/
 !/btop/
@@ -22,6 +26,10 @@
 !/micro/
 !/lazygit/
 
+# Local builds driven from this repo (source is cloned, only the patch and
+# the build script live here)
+!/tools/
+
 # Safety nets in case any secret-bearing files appear inside tracked dirs
 **/*.log
 **/*history*
@@ -29,5 +37,6 @@
 **/.env.*
 **/*secret*
 **/*token*
+**/__pycache__/
 **/*.key
 **/*.pem

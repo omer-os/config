@@ -1,10 +1,28 @@
+hl.env("XCURSOR_SIZE", "24")
+hl.env("HYPRCURSOR_SIZE", "24")
+hl.env("_JAVA_AWT_WM_NONREPARENTING", "1")
 hl.on("hyprland.start", function()
 	hl.exec_cmd("hyprpaper")
 	hl.exec_cmd("waybar")
 	hl.exec_cmd("swaync")
+	-- App launcher daemon. Runs hidden and is toggled over IPC by ALT + R,
+	-- so opening it costs a frame instead of a Qt cold start.
+	hl.exec_cmd("qs -c launcher")
 	hl.exec_cmd("wl-paste --watch cliphist store")
+	-- On-screen volume/brightness/caps-lock indicator.
+	hl.exec_cmd("swayosd-server")
+	-- Blue-light filter. Runs all day and follows the profiles in
+	-- hyprsunset.conf, so there is nothing to turn on by hand.
+	hl.exec_cmd("hyprsunset")
+	-- Phone link. Backs the waybar phone button; without the daemon running
+	-- the button has nothing to talk to.
+	hl.exec_cmd("kdeconnectd")
 end)
-
+hl.config({
+	xwayland = {
+		force_zero_scaling = true,
+	},
+})
 hl.monitor({
 	output = "",
 	mode = "preferred",
@@ -13,8 +31,8 @@ hl.monitor({
 })
 
 local terminal = "kitty"
-local fileManager = "dolphin"
-local menu = "wofi --show drun"
+local fileManager = "nautilus"
+local menu = "qs -c launcher ipc call launcher toggle"
 local browser = "google-chrome-stable"
 
 hl.env("XCURSOR_SIZE", "24")
@@ -136,7 +154,6 @@ hl.bind(mainMod .. " + SHIFT + Return", hl.dsp.exec_cmd(browser))
 hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("~/.config/waybar/scripts/language.sh toggle"))
 
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(fileManager))
--- hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + F", hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(menu))
 -- Pauses the recording if one is running, otherwise falls back to pseudo.
@@ -171,40 +188,31 @@ for i = 1, 10 do
 	hl.bind(mainMod .. " + SHIFT + " .. key, hl.dsp.exec_cmd(wsScript .. " move " .. i))
 end
 
--- ALT + S saves the recording if one is running, otherwise takes a screenshot.
+-- ALT + S saves the recording if one is running, otherwise takes a region
+-- screenshot; ALT + SHIFT + S grabs the whole screen with no selection step.
+-- Both open in satty first, so the shot can be drawn on before it is saved.
 hl.bind(mainMod .. " + S", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/screenrecord.sh save"))
+hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/screenshot.sh full"))
 hl.bind(mainMod .. " + SHIFT + R", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/screenrecord.sh toggle"))
--- hl.bind(mainMod .. " + S", hl.dsp.workspace.toggle_special("magic"))
-hl.bind(mainMod .. " + SHIFT + S", hl.dsp.window.move({ workspace = "special:magic" }))
 
 hl.bind(mainMod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
 hl.bind(mainMod .. " + mouse_up", hl.dsp.focus({ workspace = "e-1" }))
 
+-- Audio and brightness go through swayosd-client rather than wpctl and
+-- brightnessctl directly: it applies the change *and* draws the on-screen
+-- bar, so there is no separate notification to keep in sync.
+local osd = function(args)
+	return hl.dsp.exec_cmd("swayosd-client " .. args)
+end
 
-hl.bind(
-	"XF86AudioRaiseVolume",
-	hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"),
-	{ locked = true, repeating = true }
-)
-hl.bind(
-	"XF86AudioLowerVolume",
-	hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"),
-	{ locked = true, repeating = true }
-)
-hl.bind(
-	"XF86AudioMute",
-	hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),
-	{ locked = true, repeating = true }
-)
-hl.bind(
-	"XF86AudioMicMute",
-	hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"),
-	{ locked = true, repeating = true }
-)
-hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%+"), { locked = true, repeating = true })
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%-"), { locked = true, repeating = true })
-hl.bind(mainMod .. " + F6", hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%+"), { locked = true, repeating = true })
-hl.bind(mainMod .. " + F5", hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%-"), { locked = true, repeating = true })
+hl.bind("XF86AudioRaiseVolume", osd("--output-volume raise --max-volume 100"), { locked = true, repeating = true })
+hl.bind("XF86AudioLowerVolume", osd("--output-volume lower"), { locked = true, repeating = true })
+hl.bind("XF86AudioMute", osd("--output-volume mute-toggle"), { locked = true })
+hl.bind("XF86AudioMicMute", osd("--input-volume mute-toggle"), { locked = true })
+hl.bind("XF86MonBrightnessUp", osd("--brightness raise 5"), { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessDown", osd("--brightness lower 5"), { locked = true, repeating = true })
+hl.bind(mainMod .. " + F6", osd("--brightness raise 5"), { locked = true, repeating = true })
+hl.bind(mainMod .. " + F5", osd("--brightness lower 5"), { locked = true, repeating = true })
 
 hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), { locked = true })
 hl.bind("XF86AudioPause", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
@@ -213,9 +221,25 @@ hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"), { locked = true 
 
 hl.bind(mainMod .. " + D", hl.dsp.exec_cmd("wdisplays"))
 hl.bind("ALT + Escape", hl.dsp.exec_cmd("wlogout"))
-hl.bind(mainMod .. " + C", hl.dsp.exec_cmd("bash -c 'cliphist list | wofi --dmenu | cliphist decode | wl-copy'"))
+hl.bind("ALT + SHIFT + Escape", hl.dsp.exec_cmd("hyprlock"))
 
-hl.bind(mainMod .. " + O", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/toggle-eDP.sh"))
+-- Manual blue-light override. hyprsunset.conf already switches on its own at
+-- sunset/sunrise; this forces warm now (or back to normal) without waiting.
+-- `hyprctl hyprsunset temperature` reports the active value, so no state file.
+hl.bind(
+	mainMod .. " + B",
+	hl.dsp.exec_cmd(
+		'bash -c \'t=$(hyprctl hyprsunset temperature | grep -o "[0-9]\\+" | head -1); '
+			.. 'if [ "${t:-6500}" -ge 6000 ]; '
+			.. "then hyprctl hyprsunset temperature 4000; "
+			.. "else hyprctl hyprsunset identity; fi'"
+	)
+)
+-- Clipboard history in the launcher's own clipboard mode rather than a
+-- separate wofi menu, so both pickers look and behave the same.
+hl.bind(mainMod .. " + C", hl.dsp.exec_cmd("qs -c launcher ipc call launcher clipboard"))
+
+hl.bind(mainMod .. " + SHIFT + D", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/toggle-eDP.sh"))
 
 hl.window_rule({
 	name = "fix-xwayland-drags",
@@ -252,6 +276,24 @@ hl.window_rule({
 	no_max_size = true,
 })
 
+-- The screenshot editor sizes itself to the shot it was handed; tiling it
+-- would stretch the image away from the pixels it is annotating.
+hl.window_rule({
+	name = "swappy-floating",
+	match = { class = "^swappy(-mini)?$" },
+	float = true,
+})
+
+-- The weekly update terminal from the waybar module: float it in the middle
+-- so it reads as a dialog rather than shoving the workspace layout around.
+hl.window_rule({
+	name = "sysupdate-float",
+	match = { class = "^sysupdate-float$" },
+	float = true,
+	size = "60% 70%",
+	center = true,
+})
+
 hl.window_rule({
 	name = "move-hyprland-run",
 	match = { class = "hyprland-run" },
@@ -259,7 +301,36 @@ hl.window_rule({
 	float = true,
 })
 
-hl.bind(mainMod .. " + SHIFT + D", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/toggle-eDP.sh"))
 hl.bind(mainMod .. " + SHIFT + W", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/win11.sh"))
 hl.bind(mainMod .. " + SHIFT + A", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/waydroid.sh"))
 hl.bind(mainMod .. " + SHIFT + P", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/waydroid.sh size"))
+
+-- Steam's main window tiles like anything else, but its satellite windows
+-- (friends list, settings, the download/screenshot popups) are dialogs that
+-- Steam sizes itself. Tiling them squashes the layout, so they float.
+hl.window_rule({
+	name = "steam-dialogs",
+	match = {
+		class = "^steam$",
+		title = "^(Friends List|Steam Settings|Special Offers|Screenshot Uploader|Steam - News|Sign in to Steam)$",
+	},
+	float = true,
+})
+
+-- Steam's "Add a Game"/library popups come through with no title set at all.
+hl.window_rule({
+	name = "steam-untitled-popups",
+	match = { class = "^steam$", title = "^$" },
+	float = true,
+})
+
+-- Games run fullscreen and want the compositor out of the way: no gaps, no
+-- border, and no idle timeout firing during a long cutscene or a gamepad
+-- session where the keyboard is never touched.
+hl.window_rule({
+	name = "games-fullscreen",
+	match = { fullscreen = true },
+	idle_inhibit = "fullscreen",
+	border_size = 0,
+	rounding = 0,
+})

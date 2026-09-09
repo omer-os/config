@@ -1,0 +1,12 @@
+# lidcam configuration — fill these in, then keep this file private.
+# Get BOT_TOKEN from @BotFather on Telegram (create a bot, copy the token).
+# Get CHAT_ID by messaging your bot once, then visiting:
+#   https://api.telegram.org/bot<BOT_TOKEN>/getUpdates
+# and reading "chat":{"id": ...}.
+
+BOT_TOKEN=""
+CHAT_ID=""
+
+# Optional overrides:
+# DEVICE=/dev/video0
+# WARMUP=12

@@ -4,9 +4,21 @@
   "height": 32,
   "spacing": 0,
 
-  "modules-left": ["custom/workspaces"],
+  // Workspaces are ten independent modules rather than one string: waybar
+  // only allows a single click handler per module, and each workspace has to
+  // be clickable on its own. Slots with no workspace behind them print empty
+  // text and disappear, so the row still collapses to what's in use.
+  "modules-left": [
+    "custom/ws1", "custom/ws2", "custom/ws3", "custom/ws4", "custom/ws5",
+    "custom/ws6", "custom/ws7", "custom/ws8", "custom/ws9", "custom/ws10"
+  ],
   "modules-center": ["clock"],
   "modules-right": [
+    "custom/recording",
+    "custom/update",
+    "custom/phone",
+    "custom/claude",
+    "privacy",
     "backlight",
     "pulseaudio",
     "bluetooth",
@@ -14,20 +26,23 @@
     "battery",
     "custom/language",
     "tray",
-    "custom/notification",
     "custom/power"
   ],
 
-  // ── Workspaces (live window titles, direct ALT+N) ──────────────────
-  "custom/workspaces": {
-    "format": "{}",
-    "return-type": "json",
-    "exec": "~/.config/waybar/scripts/workspaces.py",
-    "escape": false,
-    "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"",
-    "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\""
-  },
+  "custom/ws1":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 1",  "on-click": "~/.config/hypr/scripts/workspace.py focus 1",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 1",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws2":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 2",  "on-click": "~/.config/hypr/scripts/workspace.py focus 2",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 2",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws3":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 3",  "on-click": "~/.config/hypr/scripts/workspace.py focus 3",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 3",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws4":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 4",  "on-click": "~/.config/hypr/scripts/workspace.py focus 4",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 4",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws5":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 5",  "on-click": "~/.config/hypr/scripts/workspace.py focus 5",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 5",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws6":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 6",  "on-click": "~/.config/hypr/scripts/workspace.py focus 6",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 6",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws7":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 7",  "on-click": "~/.config/hypr/scripts/workspace.py focus 7",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 7",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws8":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 8",  "on-click": "~/.config/hypr/scripts/workspace.py focus 8",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 8",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws9":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 9",  "on-click": "~/.config/hypr/scripts/workspace.py focus 9",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 9",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws10": { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 10", "on-click": "~/.config/hypr/scripts/workspace.py focus 10", "on-click-right": "~/.config/hypr/scripts/workspace.py move 10", "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
 
+  // ── Clock ─────────────────────────────────────────────────────────
+  // Left click opens the notification centre -- that's where the bell used
+  // to live, and the clock is the natural place to go looking for it.
   "clock": {
     "format": "{:%H:%M}",
     "tooltip-format": "<tt>{calendar}</tt>",
@@ -41,23 +56,26 @@
         "today":    "<span color='#00ff5f'><b>{}</b></span>"
       }
     },
+    "on-click": "swaync-client -t -sw",
+    "on-click-right": "swaync-client -d -sw",
     "actions": {
-      "on-click-right": "mode",
+      "on-click-middle": "mode",
       "on-scroll-up": "shift_up",
       "on-scroll-down": "shift_down"
     }
   },
 
-  // ── Brightness: icon only, scroll to change ────────────────────────
+  // ── Brightness: click dims/undims, scroll for fine control ─────────
   "backlight": {
     "device": "nvidia_0",
     "format": "󰃠",
-    "tooltip-format": "Brightness {percent}%",
+    "tooltip-format": "Brightness {percent}%\nclick: 30% / 100%   scroll: adjust",
+    "on-click": "~/.config/waybar/scripts/actions.sh brightness",
     "on-scroll-up": "brightnessctl -e4 -n2 set 5%+",
     "on-scroll-down": "brightnessctl -e4 -n2 set 5%-"
   },
 
-  // ── Volume: icon only, reflects level / mute, scroll to change ──────
+  // ── Volume: click mutes, middle cycles output, right opens mixer ────
   "pulseaudio": {
     "format": "{icon}",
     "format-muted": "󰖁",
@@ -68,45 +86,99 @@
       "default": ["󰕿", "󰖀", "󰕾"]
     },
     "scroll-step": 5,
-    "tooltip-format": "{desc}   {volume}%",
-    "on-click": "pavucontrol",
-    "on-click-right": "pactl set-sink-mute @DEFAULT_SINK@ toggle"
+    "tooltip-format": "{desc}   {volume}%\nclick: sound settings   middle: next output   right: mute",
+    "on-click": "pavucontrol -t 3",
+    "on-click-middle": "~/.config/waybar/scripts/actions.sh sink",
+    "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
   },
 
-  // ── Bluetooth: icon only ───────────────────────────────────────────
+  // ── Bluetooth: click toggles the radio, right opens the manager ─────
   "bluetooth": {
     "format": "󰂯",
     "format-disabled": "󰂲",
     "format-off": "󰂲",
     "format-connected": "󰂱",
-    "tooltip-format": "{controller_alias}\n{status}",
-    "tooltip-format-connected": "{controller_alias}\n{num_connections} connected\n{device_enumerate}",
+    "tooltip-format": "{controller_alias}\n{status}\nclick: toggle radio   right: manager",
+    "tooltip-format-connected": "{controller_alias}\n{num_connections} connected\n{device_enumerate}\nclick: toggle radio   right: manager",
     "tooltip-format-enumerate-connected": "{device_alias}",
-    "on-click": "blueman-manager"
+    "on-click": "~/.config/waybar/scripts/actions.sh bt",
+    "on-click-right": "blueman-manager"
   },
 
-  // ── Network: name only, nothing else ───────────────────────────────
+  // ── Network: click picks a network, middle toggles the radio ────────
   "network": {
     "format-wifi": "{essid}",
     "format-ethernet": "{ifname}",
     "format-linked": "{ifname}",
     "format-disconnected": "offline",
     "max-length": 16,
-    "tooltip-format-wifi": "{essid}   {signalStrength}%",
-    "tooltip-format-ethernet": "{ifname}   connected",
-    "tooltip-format-disconnected": "No connection",
-    "on-click": "nm-connection-editor",
-    "on-click-right": "kitty --class nmtui-float -e nmtui"
+    "tooltip-format-wifi": "{essid}   {signalStrength}%\nclick: pick network   middle: toggle wifi   right: settings",
+    "tooltip-format-ethernet": "{ifname}   connected\nclick: pick network   right: settings",
+    "tooltip-format-disconnected": "No connection\nclick: pick network   middle: toggle wifi",
+    "on-click": "kitty --class nmtui-float -e nmtui",
+    "on-click-middle": "~/.config/waybar/scripts/actions.sh wifi",
+    "on-click-right": "nm-connection-editor"
   },
 
-  // ── Battery: charge-level icon + charging icon ─────────────────────
+  // ── Battery: click cycles the power profile ─────────────────────────
   "battery": {
     "states": { "good": 80, "warning": 30, "critical": 15 },
     "format": "{icon} {capacity}%",
     "format-charging": "󰂄 {capacity}%",
     "format-plugged": "󰂄 {capacity}%",
     "format-icons": ["󰂎", "󰁺", "󰁼", "󰁾", "󰂀", "󰁹"],
-    "tooltip-format": "{capacity}%   {timeTo}"
+    "tooltip-format": "{capacity}%   {timeTo}\nclick: cycle power profile   right: btop",
+    "on-click": "~/.config/waybar/scripts/actions.sh profile",
+    "on-click-right": "kitty -e btop"
+  },
+
+  // ── Recording: live timer, hidden unless something is recording ────
+  "custom/recording": {
+    "format": "{}",
+    "return-type": "json",
+    "exec": "~/.config/waybar/scripts/recording.sh",
+    "interval": 1,
+    "signal": 10,
+    "escape": false,
+    "on-click": "~/.config/hypr/scripts/screenrecord.sh save",
+    "on-click-right": "~/.config/hypr/scripts/screenrecord.sh pause"
+  },
+
+  // ── Update: shows up once a week with the pending count ────────
+  // Click runs the full update in a floating terminal, right click snoozes.
+  "custom/update": {
+    "format": "{}",
+    "return-type": "json",
+    "exec": "~/.config/waybar/scripts/update.sh status",
+    "interval": 1800,
+    "signal": 12,
+    "escape": false,
+    "on-click": "~/.config/waybar/scripts/update.sh run",
+    "on-click-right": "~/.config/waybar/scripts/update.sh snooze"
+  },
+
+  // ── Phone: one click pushes the clipboard to the paired phone ──────
+  // Images and copied files go over as files, anything else as text.
+  "custom/phone": {
+    "format": "{}",
+    "return-type": "json",
+    "exec": "~/.config/waybar/scripts/phone.sh status",
+    "interval": 10,
+    "signal": 11,
+    "escape": false,
+    "on-click": "~/.config/waybar/scripts/phone.sh send",
+    "on-click-middle": "~/.config/waybar/scripts/phone.sh ring",
+    "on-click-right": "~/.config/waybar/scripts/phone.sh settings"
+  },
+
+  // ── Claude usage: % of the 5-hour window spent ─────────────────────
+  "custom/claude": {
+    "format": "{}",
+    "return-type": "json",
+    "exec": "~/.config/waybar/scripts/claude-usage.py",
+    "interval": 60,
+    "signal": 9,
+    "on-click": "~/.config/waybar/scripts/claude-usage.py refresh"
   },
 
   "custom/language": {
@@ -118,27 +190,18 @@
     "on-click": "~/.config/waybar/scripts/language.sh toggle"
   },
 
-  "tray": { "spacing": 10 },
-
-  "custom/notification": {
-    "tooltip": false,
-    "format": "{icon}",
-    "format-icons": {
-      "notification": "<span foreground='#00ff5f'></span>",
-      "none": "<span foreground='#1c6b33'></span>",
-      "dnd-notification": "<span foreground='#00ff5f'></span>",
-      "dnd-none": "<span foreground='#1c6b33'></span>",
-      "inhibited-notification": "<span foreground='#00ff5f'></span>",
-      "inhibited-none": "<span foreground='#1c6b33'></span>",
-      "dnd-inhibited-notification": "<span foreground='#00ff5f'></span>",
-      "dnd-inhibited-none": "<span foreground='#1c6b33'></span>"
-    },
-    "return-type": "json",
-    "exec": "swaync-client -swb",
-    "on-click": "swaync-client -t -sw",
-    "on-click-right": "swaync-client -d -sw",
-    "escape": true
+  // ── Privacy: lights up while the mic is live or the screen is shared ──
+  "privacy": {
+    "icon-spacing": 8,
+    "icon-size": 13,
+    "transition-duration": 200,
+    "modules": [
+      { "type": "screenshare", "tooltip": true, "tooltip-icon-size": 20 },
+      { "type": "audio-in", "tooltip": true, "tooltip-icon-size": 20 }
+    ]
   },
+
+  "tray": { "spacing": 10 },
 
   "custom/power": {
     "format": "⏻",

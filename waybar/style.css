@@ -25,9 +25,51 @@ window#waybar {
   color: @subtext;
 }
 
-/* ── Workspaces (live window titles) ─────────────────────────── */
-#custom-workspaces {
-  padding: 0 6px 0 4px;
+/* ── Workspaces (live window titles, one module each) ────────────
+   Ten separate modules so every workspace is its own click target.
+   Padding is identical in all states so highlighting the active one
+   never shifts the row sideways. */
+#custom-ws1, #custom-ws2, #custom-ws3, #custom-ws4, #custom-ws5,
+#custom-ws6, #custom-ws7, #custom-ws8, #custom-ws9, #custom-ws10 {
+  color: @subtext;
+  padding: 0 7px;
+  margin: 0;
+}
+
+/* First slot sits a touch closer to the screen edge. */
+#custom-ws1 { padding-left: 5px; }
+
+#custom-ws1.active, #custom-ws2.active, #custom-ws3.active,
+#custom-ws4.active, #custom-ws5.active, #custom-ws6.active,
+#custom-ws7.active, #custom-ws8.active, #custom-ws9.active,
+#custom-ws10.active {
+  background: @text;
+  color: @bg;
+  font-weight: 600;
+}
+
+#custom-ws1.empty, #custom-ws2.empty, #custom-ws3.empty,
+#custom-ws4.empty, #custom-ws5.empty, #custom-ws6.empty,
+#custom-ws7.empty, #custom-ws8.empty, #custom-ws9.empty,
+#custom-ws10.empty {
+  color: @muted;
+}
+
+/* Hover says "this is clickable" without competing with the active slot. */
+#custom-ws1:hover, #custom-ws2:hover, #custom-ws3:hover,
+#custom-ws4:hover, #custom-ws5:hover, #custom-ws6:hover,
+#custom-ws7:hover, #custom-ws8:hover, #custom-ws9:hover,
+#custom-ws10:hover {
+  background: #0d1f10;
+  color: @text;
+}
+
+#custom-ws1.active:hover, #custom-ws2.active:hover, #custom-ws3.active:hover,
+#custom-ws4.active:hover, #custom-ws5.active:hover, #custom-ws6.active:hover,
+#custom-ws7.active:hover, #custom-ws8.active:hover, #custom-ws9.active:hover,
+#custom-ws10.active:hover {
+  background: @text;
+  color: @bg;
 }
 
 /* ── Clock ───────────────────────────────────────────────────── */
@@ -36,16 +78,21 @@ window#waybar {
   font-weight: 600;
   padding: 0 12px;
 }
+#clock:hover { background: #0d1f10; }
 
 /* ── Right-side modules (flat) ───────────────────────────────── */
+#privacy,
 #backlight,
 #pulseaudio,
 #bluetooth,
 #network,
 #battery,
 #custom-language,
+#custom-recording,
+#custom-update,
+#custom-phone,
+#custom-claude,
 #tray,
-#custom-notification,
 #custom-power {
   color: @subtext;
   padding: 0 9px;
@@ -63,10 +110,47 @@ window#waybar {
 #network:hover,
 #battery:hover,
 #custom-language:hover,
-#custom-notification:hover { color: @text; }
+#custom-claude:hover,
+#custom-update:hover,
+#custom-phone:hover { color: @text; }
 
 /* ── States ──────────────────────────────────────────────────── */
 #custom-language.ar               { color: @text; font-weight: 700; }
+#custom-phone.on                  { color: @subtext; }
+#custom-phone.off                 { color: @muted; }
+#custom-claude                    { font-weight: 600; }
+
+/* ── Recording ────────────────────────────────────────────────────
+   Only present while a recording is live, so it can afford to be the
+   loudest thing on the bar. The pulse is what catches the eye from
+   across the screen; paused holds steady so the two read apart. */
+#custom-recording.recording {
+  color: @crit;
+  font-weight: 700;
+  animation: recording-pulse 2s ease-in-out infinite;
+}
+#custom-recording.paused {
+  color: @warn;
+  font-weight: 700;
+}
+#custom-recording.idle { padding: 0; }
+
+/* ── Update reminder ──────────────────────────────────────────────
+   Hidden for a week after each update, then shows the pending count
+   in the warn shade so it reads as "attention" but not "alarm". */
+#custom-update.due  { color: @warn; font-weight: 600; }
+#custom-update.idle { padding: 0; }
+
+@keyframes recording-pulse {
+  0%   { color: @crit; }
+  50%  { color: #7a2020; }
+  100% { color: @crit; }
+}
+#custom-claude.ok                 { color: @subtext; }
+#custom-claude.warning            { color: @warn; }
+#custom-claude.critical           { color: @crit; }
+#custom-claude.off,
+#custom-claude.stale              { color: @muted; }
 #pulseaudio.muted                 { color: @muted; }
 #bluetooth.off,
 #bluetooth.disabled               { color: @muted; }
@@ -76,15 +160,31 @@ window#waybar {
 #battery.warning:not(.charging)   { color: @warn; }
 #battery.critical:not(.charging)  { color: @crit; }
 
+/* ── Privacy ─────────────────────────────────────────────────────
+   Only rendered while something is actually capturing, so it can be
+   loud: red for screen capture, amber-green for a live mic. */
+#privacy { padding: 0 4px; }
+
+#privacy-item {
+  padding: 0 5px;
+  color: @crit;
+}
+
+#privacy-item.screenshare { color: @crit; }
+#privacy-item.audio-in    { color: @warn; }
+#privacy-item.audio-out   { color: @subtext; }
+
 #custom-power        { color: @muted; padding: 0 14px 0 9px; }
 #custom-power:hover  { color: @crit; }
 
+#tray { padding: 0 6px; }
 #tray menu { background: @bg; }
 
 /* ── Tooltips ────────────────────────────────────────────────── */
 tooltip {
   background: @bg;
   border: 1px solid @muted;
+  padding: 4px 6px;
 }
 tooltip label {
   color: @text;

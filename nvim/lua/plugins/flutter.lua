@@ -16,11 +16,15 @@ return {
 
   {
     "akinsho/flutter-tools.nvim",
-    lazy = false,
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      "stevearc/dressing.nvim", -- nicer device/emulator selection prompts
-    },
+    -- Was `lazy = false`, which ran the Flutter SDK lookup on every startup and
+    -- errored out loudly when no SDK is installed. Loading on dart files (or on
+    -- any <leader>F mapping below) keeps that noise out of unrelated sessions.
+    ft = { "dart" },
+    -- No dressing.nvim here: it overrides vim.ui.select/vim.ui.input globally,
+    -- which steals them from LazyVim's Snacks.input / Snacks.picker.select and
+    -- makes the device picker look nothing like the rest of the UI.
+    -- flutter-tools calls plain vim.ui.select, so Snacks handles it already.
+    dependencies = { "nvim-lua/plenary.nvim" },
     opts = {
       ui = {
         border = "rounded",
@@ -102,10 +106,11 @@ return {
       },
 
       lsp = {
-        -- Color swatches are handled by Neovim's built-in vim.lsp.document_color
-        -- (see the LspAttach autocmd below); flutter-tools' own implementation is
-        -- deprecated on 0.12+.
-        color = { enabled = false },
+        -- No `color` key here on purpose. flutter-tools warns "lsp.color is
+        -- deprecated" on Neovim 0.12+ whenever the key is present at all, even
+        -- set to disabled, and its default is disabled anyway. Colour swatches
+        -- come from Neovim's built-in vim.lsp.document_color instead (see the
+        -- LspAttach autocmd below).
 
         -- Merge blink.cmp's completion capabilities into dartls
         capabilities = function(default)
@@ -142,7 +147,8 @@ return {
           callback = function(args)
             local client = vim.lsp.get_client_by_id(args.data.client_id)
             if client and client:supports_method("textDocument/documentColor") then
-              vim.lsp.document_color.enable(true, args.buf, { style = "virtual" })
+              -- Neovim 0.12 takes a filter table here, not a raw bufnr.
+              vim.lsp.document_color.enable(true, { bufnr = args.buf }, { style = "virtual" })
             end
           end,
         })

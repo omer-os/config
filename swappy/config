@@ -1,0 +1,21 @@
+# Annotation editor for ALT+S / ALT+SHIFT+S -- see hypr/scripts/screenshot.sh.
+#
+# Replaced satty, which took ~0.75s to put a window on screen (GTK4 + GSK on
+# this NVIDIA laptop) against swappy's ~0.14s, measured the same way.
+#
+# Enter (or Ctrl+S) saves into save_dir and quits; screenshot.sh mirrors that
+# file to the clipboard afterwards, so one key still does both. Ctrl+C copies
+# only. Escape or q throws the shot away. The Enter bind comes from the local
+# build in tools/screenshot-editor -- upstream swappy has no such key.
+[Default]
+save_dir=$HOME/Pictures/screenshots
+save_filename_format=%Y-%m-%d_%H-%M-%S.png
+show_panel=true
+paint_mode=brush
+line_size=5
+text_size=24
+text_font=Noto Sans
+early_exit=true
+fill_shape=false
+auto_save=false
+custom_color=rgba(235,77,75,1)

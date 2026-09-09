@@ -1,0 +1,63 @@
+/* On-screen volume / brightness / caps-lock indicator.
+   Same palette and flat, square-cornered look as waybar. */
+
+@define-color bg      #050a05;
+@define-color text    #00ff5f;
+@define-color subtext #35c95a;
+@define-color muted   #1c6b33;
+
+window {
+  padding: 12px 18px;
+  border-radius: 0;
+  border: 1px solid @muted;
+  background: @bg;
+  color: @subtext;
+
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* The icon left of the bar. */
+image {
+  color: @text;
+  min-width: 26px;
+  min-height: 26px;
+  -gtk-icon-transform: none;
+}
+
+/* Numeric readout (shown when a value has a percentage). */
+label {
+  color: @text;
+  font-weight: 600;
+  margin-left: 10px;
+}
+
+/* ── The bar itself: a flat green fill on a dark trough ──────────── */
+progressbar {
+  min-height: 6px;
+}
+
+progressbar trough {
+  min-height: 6px;
+  border-radius: 0;
+  border: none;
+  background: @muted;
+}
+
+progressbar progress {
+  min-height: 6px;
+  border-radius: 0;
+  border: none;
+  background: @text;
+}
+
+/* Muted output / disabled state drops to the dim green. */
+window.muted image,
+window.muted label {
+  color: @muted;
+}
+
+window.muted progressbar progress {
+  background: @muted;
+}

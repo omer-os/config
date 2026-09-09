@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
-"""Waybar workspace module: shows live window titles instead of numbers.
+"""Waybar workspace slot: one module per workspace, so each is clickable.
 
-Only workspaces that actually exist are rendered (plus the active one, even
-when empty). Each entry is the title of that workspace's most recently focused
-window, cleaned up and truncated. Driven by Hyprland's event socket, so it
-updates the instant something changes -- no polling.
+Waybar can only attach a single click handler to a module, so the row is built
+from ten independent modules (custom/ws1 .. custom/ws10) rather than one
+pre-rendered string. Each instance of this script owns one slot:
+
+    workspaces.py <n>
+
+and prints the title of workspace n's most recently focused window. A slot
+whose workspace does not exist prints empty text, which waybar renders as a
+hidden module -- so the row still collapses to only the workspaces in use.
+
+Driven by Hyprland's event socket, so it updates the instant something
+changes -- no polling.
 """
 
 import json
@@ -16,9 +24,6 @@ import sys
 from html import escape
 
 # ── palette (keep in sync with style.css) ────────────────────────────────
-ACTIVE_FG = "#050a05"
-ACTIVE_BG = "#00ff5f"
-IDLE_FG = "#35c95a"
 IDLE_IDX = "#1c6b33"
 
 MAX_TITLE = 22
@@ -91,7 +96,7 @@ def clean_title(title, cls):
     return title
 
 
-def render():
+def render(slot):
     clients = hyprctl("clients")
     active = hyprctl("activeworkspace")
     workspaces = hyprctl("workspaces")
@@ -100,70 +105,69 @@ def render():
 
     active_id = active.get("id", 1)
 
-    # Best (most recently focused) client per workspace. focusHistoryID 0 is
-    # the currently focused window, so lower wins.
-    best = {}
-    counts = {}
-    for c in clients:
-        wid = c.get("workspace", {}).get("id")
-        if wid is None or wid < 1:  # skip special workspaces
-            continue
-        counts[wid] = counts.get(wid, 0) + 1
-        prev = best.get(wid)
-        if prev is None or c.get("focusHistoryID", 999) < prev.get("focusHistoryID", 999):
-            best[wid] = c
-
-    # Every workspace Hyprland says exists, plus safety nets for the active
-    # one and any workspace that still has clients. Persistent empty
-    # workspaces show up here too, so a cleared middle workspace stays put.
+    mine = [
+        c for c in clients if c.get("workspace", {}).get("id") == slot
+    ]
     existing = {w["id"] for w in workspaces if w.get("id", 0) >= 1}
-    ids = sorted(existing | set(counts) | {active_id})
 
-    parts = []
-    for wid in ids:
-        client = best.get(wid)
-        if client:
-            label = clean_title(client.get("title"), client.get("class"))
-        else:
-            label = "empty"
+    # Nothing here and Hyprland doesn't know about it: hide the slot. The
+    # active workspace always renders, even when empty.
+    if slot not in existing and not mine and slot != active_id:
+        return {"text": "", "tooltip": "", "class": "hidden"}
 
-        # FSI/PDI-isolate the title so RTL text (Arabic, Hebrew) can't
-        # bidi-reorder the position number, the +N counter, or neighbours.
-        label = "\u2068" + escape(label) + "\u2069"
-        if client:
-            extra = counts.get(wid, 1) - 1
-            if extra:
-                label += f" +{extra}"
-        # Both states must render the exact same characters -- " {wid} {label} "
-        # -- so activating a workspace only changes colour and never shifts the
-        # row sideways. The number shown is the real Hyprland workspace ID,
-        # which is exactly what ALT+N now targets.
-        if wid == active_id:
-            parts.append(
-                f"<span background='{ACTIVE_BG}' foreground='{ACTIVE_FG}'>"
-                f" {wid} {label} </span>"
-            )
-        else:
-            parts.append(
-                f"<span foreground='{IDLE_IDX}'> {wid} </span>"
-                f"<span foreground='{IDLE_FG}'>{label}</span>"
-                f"<span> </span>"
-            )
+    # Most recently focused client wins; focusHistoryID 0 is the focused one.
+    best = None
+    for c in mine:
+        if best is None or c.get("focusHistoryID", 999) < best.get("focusHistoryID", 999):
+            best = c
+
+    if best:
+        label = clean_title(best.get("title"), best.get("class"))
+        tooltip = "\n".join(
+            escape(clean_title(c.get("title"), c.get("class"))) for c in mine
+        )
+    else:
+        label = "empty"
+        tooltip = f"workspace {slot} · empty"
+
+    # FSI/PDI-isolate the title so RTL text (Arabic, Hebrew) can't
+    # bidi-reorder the position number, the +N counter, or neighbours.
+    body = "⁨" + escape(label) + "⁩"
+    extra = len(mine) - 1
+    if extra > 0:
+        body += f" +{extra}"
+
+    is_active = slot == active_id
+    # Both states render the exact same characters, so activating a workspace
+    # only changes colour and never shifts the row sideways. The number shown
+    # is the real Hyprland workspace ID -- exactly what ALT+N targets.
+    if is_active:
+        text = f"{slot} {body}"
+    else:
+        text = f"<span foreground='{IDLE_IDX}'>{slot}</span> {body}"
 
     # Leading LRM pins the paragraph base direction to LTR; otherwise Pango
-    # infers it from the first strong character, so an Arabic title in the
-    # first slot would lay the whole row out right-to-left.
-    return {"text": "\u200e" + "".join(parts), "tooltip": ""}
+    # infers it from the first strong character, so an Arabic title would lay
+    # the whole slot out right-to-left.
+    return {
+        "text": "‎" + text,
+        "tooltip": tooltip,
+        "class": "active" if is_active else ("occupied" if best else "empty"),
+    }
 
 
-def emit():
-    data = render()
+def emit(slot):
+    data = render(slot)
     if data:
         print(json.dumps(data), flush=True)
 
 
 def main():
-    emit()
+    if len(sys.argv) != 2:
+        sys.exit("usage: workspaces.py <workspace-number>")
+    slot = int(sys.argv[1])
+
+    emit(slot)
 
     sig = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE")
     runtime = os.environ.get("XDG_RUNTIME_DIR", "/run/user/1000")
@@ -193,7 +197,7 @@ def main():
                 break
             buf += more
         buf = buf.rsplit(b"\n", 1)[-1] if b"\n" in buf else b""
-        emit()
+        emit(slot)
 
 
 if __name__ == "__main__":

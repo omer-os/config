@@ -1,0 +1,14 @@
+.notification.critical {
+  background: #7f1d1d;
+  border: 2px solid #ef4444;
+  color: white;
+  font-weight: bold;
+}
+
+.notification.critical .summary {
+  font-size: 18px;
+}
+
+.notification.critical .body {
+  font-size: 14px;
+}

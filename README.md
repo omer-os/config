@@ -6,8 +6,11 @@ Personal `~/.config` dotfiles.
 
 | Config | What |
 | --- | --- |
-| `waybar` | Status bar (Catppuccin Mocha, Hyprland workspaces) |
-| `hypr` | Hyprland window manager |
+| `waybar` | Status bar (terminal green, Hyprland workspaces, privacy indicator) |
+| `hypr` | Hyprland window manager, lock screen (`hyprlock`), blue-light filter (`hyprsunset`) |
+| `swaync` | Notification centre |
+| `wlogout` | Power menu (Lock wired to `hyprlock`) |
+| `swayosd` | On-screen volume / brightness / caps-lock indicator |
 | `kitty` | Terminal |
 | `cava` | Audio visualizer |
 | `btop` | System monitor |
