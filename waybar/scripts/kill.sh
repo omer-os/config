@@ -53,7 +53,7 @@ ports() {
 
 vm() {
   local pid
-  pid=$(pgrep -o -f 'qemu-system-x86_64' 2>/dev/null) || return 0
+  pid=$(pgrep -o -f '^(/usr/bin/)?qemu-system-x86_64 ' 2>/dev/null) || return 0
   printf 'vm\t%s\tWindows VM (qemu)\n' "$pid"
 }
 
