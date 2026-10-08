@@ -96,7 +96,8 @@ return {
         hl.CursorLineNr = { fg = "#00ff5f", bold = true }
         hl.LineNr = { fg = "#254a2f" }
         hl.Cursor = { fg = c.bg, bg = "#00ff5f" }
-        hl.MatchParen = { fg = "#050a05", bg = "#9dff2e", bold = true }
+        -- no bg fill: a solid green block here is indistinguishable from the cursor
+        hl.MatchParen = { fg = "#9dff2e", bold = true, underline = true }
         hl.Visual = { bg = "#15401f" }
         hl.ColorColumn = { bg = "#0a140c" }
         hl.WinSeparator = { fg = "#1c6b33" }

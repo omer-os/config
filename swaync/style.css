@@ -1,14 +1,512 @@
-.notification.critical {
-  background: #7f1d1d;
-  border: 2px solid #ef4444;
-  color: white;
-  font-weight: bold;
+/* ── Apple-style notifications ────────────────────────────────────
+   One dark rounded card, hairline edge, no drop shadow, quiet text.
+   Loaded after /etc/xdg/swaync/style.css (cssPriority: user), so this
+   file only redefines the variables and the handful of rules whose
+   defaults are not calm enough. swaync 0.12 is GTK4, so there is no
+   real backdrop blur available -- the card is near-opaque instead,
+   which stays crisp against the flat wallpaper. */
+
+:root {
+  /* Surfaces. 0.97 alpha keeps a trace of the desktop underneath without
+     turning the card into mud the way full transparency does. */
+  --noti-bg: 28, 19, 15;
+  --noti-bg-alpha: 0.97;
+  --noti-bg-darker: rgba(20, 14, 11, 0.96);
+  --noti-bg-hover: rgba(46, 31, 24, 0.96);
+  --noti-bg-focus: rgba(54, 36, 27, 0.96);
+  --cc-bg: rgba(22, 15, 12, 0.98);
+
+  /* Hairline edge: the thing that makes a dark card read as a card. */
+  --noti-border-color: rgba(255, 255, 255, 0.09);
+  --border: 1px solid var(--noti-border-color);
+  --border-radius: 20px;
+  --radius-inner: 14px;
+  --radius-pill: 999px;
+
+  --text-color: rgba(255, 255, 255, 0.96);
+  --text-secondary: rgba(255, 255, 255, 0.62);
+  --text-tertiary: rgba(255, 255, 255, 0.38);
+  --text-color-disabled: rgba(255, 255, 255, 0.3);
+  --bg-selected: #e86a24;
+
+  --noti-close-bg: rgba(255, 255, 255, 0.1);
+  --noti-close-bg-hover: rgba(255, 255, 255, 0.18);
+
+  --notification-icon-size: 44px;
+  --notification-app-icon-size: 18px;
+  --notification-group-icon-size: 22px;
+
+  /* No drop shadow anywhere: the hairline edge separates the card from
+     the desktop on its own, and a shadow over an unblurred background
+     just smears. Kept as a variable so the stock rules pick up 'none'. */
+  --notification-shadow: none;
+
+  --font-size-summary: 14px;
+  --font-size-body: 13px;
+
+  --hover-tranistion: background 180ms ease, opacity 180ms ease;
+  --hover-transition: var(--hover-tranistion);
+  --group-collapse-tranistion: opacity 280ms ease;
+  --group-collapse-transition: var(--group-collapse-tranistion);
 }
 
-.notification.critical .summary {
-  font-size: 18px;
+/* Fallbacks for the pre-variable code paths. */
+@define-color noti-bg rgba(28, 19, 15, 0.97);
+@define-color noti-bg-opaque rgb(28, 19, 15);
+@define-color noti-bg-darker rgb(20, 14, 11);
+@define-color noti-bg-hover rgb(46, 31, 24);
+@define-color noti-bg-focus rgba(54, 36, 27, 0.96);
+@define-color noti-border-color rgba(255, 255, 255, 0.09);
+@define-color cc-bg rgba(22, 15, 12, 0.98);
+@define-color text-color rgba(255, 255, 255, 0.96);
+@define-color text-color-disabled rgba(255, 255, 255, 0.3);
+@define-color bg-selected #e86a24;
+
+/* Adwaita Sans is Inter-derived, which is as close to SF as this box
+   gets. Nothing here uses the Nerd Font -- the bar owns that look. */
+* {
+  font-family: "Adwaita Sans", "Inter", "Cantarell", sans-serif;
+  text-shadow: none;
+  -gtk-icon-shadow: none;
 }
 
-.notification.critical .body {
+/* ── The card ───────────────────────────────────────────────────── */
+
+.notification-row {
+  background: none;
+  outline: none;
+}
+
+.notification-row:focus,
+.notification-row:hover {
+  background: transparent;
+}
+
+/* Gap between stacked toasts. */
+.notification-row .notification-background {
+  padding: 7px 10px;
+}
+
+.notification-row .notification-background .notification {
+  border-radius: var(--border-radius);
+  border: var(--border);
+  padding: 0;
+  background: rgba(var(--noti-bg), var(--noti-bg-alpha));
+  box-shadow: var(--notification-shadow);
+  transition: var(--hover-tranistion);
+}
+
+.notification-row .notification-background .notification .notification-default-action {
+  padding: 12px 14px;
+  margin: 0;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-color);
+  border-radius: var(--border-radius);
+  transition: var(--hover-tranistion);
+}
+
+.notification-row .notification-background .notification .notification-default-action:hover {
+  background: rgba(255, 255, 255, 0.05);
+  -gtk-icon-filter: none;
+}
+
+/* Square-ish app tile on the left, the way iOS draws it. */
+.notification-row .notification-background .notification .notification-default-action .notification-content .image {
+  -gtk-icon-size: var(--notification-icon-size);
+  border-radius: 11px;
+  margin: 0 12px 0 0;
+  -gtk-icon-filter: none;
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .app-icon {
+  -gtk-icon-size: var(--notification-app-icon-size);
+  -gtk-icon-shadow: none;
+  margin: 4px;
+}
+
+/* ── Type ───────────────────────────────────────────────────────── */
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .summary {
+  font-size: var(--font-size-summary);
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  color: var(--text-color);
+  background: transparent;
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .body {
+  font-size: var(--font-size-body);
+  font-weight: 400;
+  color: var(--text-secondary);
+  background: transparent;
+  margin-top: 2px;
+}
+
+/* Time sits quiet in the corner, small and dim -- not bold like stock. */
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .time {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  background: transparent;
+  margin-right: 22px;
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .body-image {
+  margin-top: 10px;
+  border-radius: var(--radius-inner);
+  background-color: transparent;
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content progressbar {
+  margin-top: 10px;
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content progressbar trough {
+  min-height: 4px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content progressbar progress {
+  min-height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-selected);
+}
+
+/* ── Close button: hidden until the pointer is on the card ──────── */
+
+.close-button {
+  background: var(--noti-close-bg);
+  color: var(--text-color);
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 10px 10px 0 0;
+  min-width: 20px;
+  min-height: 20px;
+  border-radius: var(--radius-pill);
+  opacity: 0;
+  transition: opacity 180ms ease, background 180ms ease;
+}
+
+.notification-row:hover .close-button,
+.notification-group:hover .close-button {
+  opacity: 1;
+}
+
+.close-button:hover {
+  background: var(--noti-close-bg-hover);
+  border: none;
+  box-shadow: none;
+}
+
+/* ── Actions: pill buttons under the text ───────────────────────── */
+
+.notification-row .notification-background .notification .notification-alt-actions {
+  background: none;
+  padding: 0 10px 10px 10px;
+  border-bottom-left-radius: var(--border-radius);
+  border-bottom-right-radius: var(--border-radius);
+}
+
+.notification-row .notification-background .notification .notification-action {
+  margin: 0 4px;
+  padding: 0;
+}
+
+.notification-row .notification-background .notification .notification-action > button {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  box-shadow: none;
+  color: var(--text-color);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 12px;
+  border-radius: var(--radius-pill);
+  transition: var(--hover-tranistion);
+}
+
+.notification-row .notification-background .notification .notification-action > button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* Inline reply */
+.notification-row .notification-background .notification .notification-default-action .notification-content .inline-reply {
+  margin-top: 10px;
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .inline-reply .inline-reply-entry {
+  background: var(--noti-bg-darker);
+  color: var(--text-color);
+  caret-color: var(--text-color);
+  border: var(--border);
+  border-radius: var(--radius-pill);
+  padding: 6px 12px;
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .inline-reply .inline-reply-button {
+  margin-left: 6px;
+  background: var(--bg-selected);
+  border: none;
+  color: #fff;
+  font-weight: 500;
+  border-radius: var(--radius-pill);
+  padding: 6px 12px;
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .inline-reply .inline-reply-button:disabled {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-color-disabled);
+  border: none;
+}
+
+/* ── Urgency ────────────────────────────────────────────────────── */
+
+/* Low urgency recedes slightly rather than looking broken. */
+.notification-row .notification-background .notification.low .notification-default-action .notification-content .text-box .summary {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+/* Critical keeps the Apple restraint: a red-tinted card and a red
+   hairline, not a shouting block of colour. */
+.notification-row .notification-background .notification.critical,
+.control-center .control-center-list .notification.critical {
+  background: rgba(46, 26, 28, 0.96);
+  border: 1px solid rgba(255, 69, 58, 0.55);
+  box-shadow: none;
+}
+
+.notification-row .notification-background .notification.critical .notification-default-action .notification-content .text-box .summary {
+  color: #ff453a;
+  font-weight: 600;
+}
+
+.notification-row .notification-background .notification.critical .notification-default-action .notification-content .text-box .body {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* ── Groups ─────────────────────────────────────────────────────── */
+
+.notification-group {
+  transition: var(--group-collapse-tranistion);
+}
+
+.notification-group:focus {
+  background: transparent;
+}
+
+.notification-group .notification-group-headers,
+.notification-group .notification-group-buttons {
+  margin: 2px 18px;
+  color: var(--text-tertiary);
+}
+
+.notification-group .notification-group-headers .notification-group-header {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.notification-group .notification-group-headers .notification-group-icon {
+  color: var(--text-tertiary);
+  -gtk-icon-size: var(--notification-group-icon-size);
+}
+
+.notification-group .notification-group-close-button .close-button {
+  margin: 6px 16px;
+}
+
+.notification-group.collapsed .notification-row .notification {
+  background: rgba(var(--noti-bg), 1);
+}
+
+.notification-group.collapsed.not-expanded {
+  opacity: 0.55;
+}
+
+/* ── Control centre ─────────────────────────────────────────────── */
+
+.control-center {
+  background: var(--cc-bg);
+  border: var(--border);
+  border-radius: 24px;
+  color: var(--text-color);
+  box-shadow: none;
+  padding: 4px;
+}
+
+.control-center .control-center-list {
+  background: transparent;
+}
+
+.control-center .control-center-list-placeholder {
+  color: var(--text-tertiary);
   font-size: 14px;
+  opacity: 1;
+}
+
+.control-center .control-center-list .notification {
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.control-center .control-center-list .notification .notification-default-action:hover,
+.control-center .control-center-list .notification .notification-action:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.floating-notifications {
+  background: transparent;
+}
+
+.floating-notifications .notification {
+  box-shadow: none;
+}
+
+notificationwindow,
+blankwindow,
+.blank-window {
+  background: transparent;
+}
+
+/* ── Widgets ────────────────────────────────────────────────────── */
+
+.widget {
+  margin: 6px 10px;
+  padding: 0;
+  border-radius: var(--radius-inner);
+  background: transparent;
+}
+
+/* Big quiet header, pill Clear button. */
+.widget-title {
+  margin: 14px 14px 6px 14px;
+}
+
+.widget-title > label {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text-color);
+  margin-right: 8px;
+}
+
+.widget-title > button {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  box-shadow: none;
+  color: var(--text-color);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  transition: var(--hover-tranistion);
+}
+
+.widget-title > button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* DND as a settings row, not a floating label + switch. */
+.widget-dnd {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-inner);
+  padding: 10px 14px;
+}
+
+.widget-dnd label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.widget-dnd switch {
+  background: rgba(255, 255, 255, 0.14);
+  border: none;
+  box-shadow: none;
+  border-radius: var(--radius-pill);
+  min-height: 22px;
+  min-width: 40px;
+}
+
+.widget-dnd switch:checked {
+  background: #e86a24;
+}
+
+.widget-dnd switch slider {
+  background: #fff;
+  border: none;
+  border-radius: var(--radius-pill);
+  min-width: 18px;
+  min-height: 18px;
+  margin: 2px;
+  box-shadow: none;
+}
+
+/* Now playing */
+.widget-mpris {
+  padding: 0;
+}
+
+.widget-mpris .widget-mpris-player {
+  margin: 4px 0;
+  padding: 0;
+  border-radius: var(--radius-inner);
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.widget-mpris .widget-mpris-player .mpris-overlay {
+  padding: 14px;
+  background-color: rgba(0, 0, 0, 0.45);
+  border-radius: var(--radius-inner);
+}
+
+.widget-mpris .widget-mpris-player .mpris-overlay .widget-mpris-album-art {
+  border-radius: 10px;
+  box-shadow: none;
+  -gtk-icon-size: 72px;
+}
+
+.widget-mpris .widget-mpris-player .mpris-overlay .widget-mpris-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.widget-mpris .widget-mpris-player .mpris-overlay .widget-mpris-subtitle {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.widget-mpris .widget-mpris-player .mpris-overlay button {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--text-color);
+  border-radius: var(--radius-pill);
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.widget-mpris .widget-mpris-player .mpris-overlay button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.widget-buttons-grid flowboxchild > button {
+  border-radius: var(--radius-inner);
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+}
+
+.widget-buttons-grid flowboxchild > button.toggle:checked {
+  background: var(--bg-selected);
+  color: #fff;
 }

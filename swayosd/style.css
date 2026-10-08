@@ -1,15 +1,16 @@
 /* On-screen volume / brightness / caps-lock indicator.
    Same palette and flat, square-cornered look as waybar. */
 
-@define-color bg      #050a05;
-@define-color text    #00ff5f;
-@define-color subtext #35c95a;
-@define-color muted   #1c6b33;
+@define-color bg      #110c0a;
+@define-color text    #efe3d6;
+@define-color subtext #c2a791;
+@define-color muted   #6e5646;
+@define-color line    #2e2019;
 
 window {
   padding: 12px 18px;
   border-radius: 0;
-  border: 1px solid @muted;
+  border: 1px solid @line;
   background: @bg;
   color: @subtext;
 
@@ -33,7 +34,7 @@ label {
   margin-left: 10px;
 }
 
-/* ── The bar itself: a flat green fill on a dark trough ──────────── */
+/* ── The bar itself: a flat light fill on a dark trough ─────────── */
 progressbar {
   min-height: 6px;
 }
@@ -42,7 +43,7 @@ progressbar trough {
   min-height: 6px;
   border-radius: 0;
   border: none;
-  background: @muted;
+  background: #3a271d;
 }
 
 progressbar progress {
@@ -52,7 +53,7 @@ progressbar progress {
   background: @text;
 }
 
-/* Muted output / disabled state drops to the dim green. */
+/* Muted output / disabled state drops to the dim grey. */
 window.muted image,
 window.muted label {
   color: @muted;

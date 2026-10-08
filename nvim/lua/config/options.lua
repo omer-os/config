@@ -11,3 +11,10 @@ local mason_bin = vim.fn.stdpath("data") .. "/mason/bin"
 if vim.fn.isdirectory(mason_bin) == 1 and not vim.env.PATH:find(mason_bin, 1, true) then
   vim.env.PATH = mason_bin .. ":" .. vim.env.PATH
 end
+
+-- Soft-wrap long lines at the window width instead of scrolling sideways.
+-- LazyVim turns wrap off by default. linebreak breaks at word boundaries,
+-- breakindent keeps wrapped continuations aligned with the line's indent.
+vim.opt.wrap = true
+vim.opt.linebreak = true
+vim.opt.breakindent = true

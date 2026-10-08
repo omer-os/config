@@ -20,6 +20,14 @@ refresh() { pkill -RTMIN+$SIGNAL waybar 2>/dev/null; }
 
 now=$(date +%s)
 last_ts=$(cat "$last" 2>/dev/null || echo 0)
+
+# Also count a full upgrade run outside this module (plain `paru -Syu` in a
+# terminal) by reading the last `-Syu` line from the pacman log.
+log_line=$(grep -E "\[PACMAN\] Running '(pacman|paru) .*-u" /var/log/pacman.log 2>/dev/null | tail -1)
+if [[ -n $log_line ]]; then
+  log_ts=$(date -d "${log_line:1:24}" +%s 2>/dev/null || echo 0)
+  (( log_ts > last_ts )) && last_ts=$log_ts
+fi
 snooze_ts=$(cat "$snooze" 2>/dev/null || echo 0)
 
 case "${1:-status}" in
@@ -42,10 +50,10 @@ case "${1:-status}" in
     if (( last_ts == 0 )); then age="never updated from here"
     else age="last update ${days}d ago"; fi
 
-    tooltip="<span foreground='#00ff5f'><b>System update</b></span>  <span foreground='#35c95a'>${n} packages</span>"
-    tooltip+="\n<span foreground='#1c6b33'>${age}</span>"
-    tooltip+="\n\n<span foreground='#1c6b33'>click</span> <span foreground='#35c95a'>update now</span>"
-    tooltip+="   <span foreground='#1c6b33'>right</span> <span foreground='#35c95a'>snooze 1 day</span>"
+    tooltip="<span foreground='#ededf0'><b>System update</b></span>  <span foreground='#a8a8b0'>${n} packages</span>"
+    tooltip+="\n<span foreground='#5c5c66'>${age}</span>"
+    tooltip+="\n\n<span foreground='#5c5c66'>click</span> <span foreground='#a8a8b0'>update now</span>"
+    tooltip+="   <span foreground='#5c5c66'>right</span> <span foreground='#a8a8b0'>snooze 1 day</span>"
 
     printf '{"text":"󰚰 %s","tooltip":"%s","class":"due"}\n' "$n" "$tooltip"
     ;;
@@ -64,6 +72,15 @@ case "${1:-status}" in
     paru -Syu
     pacman_rc=$?
 
+    # The system update is what the reminder is about: mark it done as soon as
+    # paru succeeds, so a slow or failed flatpak step (or closing the window
+    # while it downloads) doesn't keep the reminder on the bar.
+    if (( pacman_rc == 0 )); then
+      date +%s > "$last"
+      rm -f "$cache" "$snooze"
+      refresh
+    fi
+
     printf "\n${g}==> Flatpak${x}\n"
     flatpak update -y
     flatpak_rc=$?
@@ -72,9 +89,6 @@ case "${1:-status}" in
     paru -Sc --noconfirm >/dev/null 2>&1
 
     if (( pacman_rc == 0 && flatpak_rc == 0 )); then
-      date +%s > "$last"
-      rm -f "$cache" "$snooze"
-      refresh
       printf "\n${g}✓ All up to date.${x}\n"
       notify-send -a "System update" "Update finished" "Everything is up to date." 2>/dev/null
     else

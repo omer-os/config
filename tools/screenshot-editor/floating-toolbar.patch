@@ -1,5 +1,135 @@
+diff --git a/include/paint.h b/include/paint.h
+index ec3bb47..5084d7a 100644
+--- a/include/paint.h
++++ b/include/paint.h
+@@ -8,13 +8,24 @@ void paint_add_temporary(struct swappy_state *state, double x, double y,
+                          enum swappy_paint_type type);
+ void paint_update_temporary_shape(struct swappy_state *state, double x,
+                                   double y, gboolean is_control_pressed);
+-void paint_update_temporary_text(struct swappy_state *state,
+-                                 GdkEventKey *event);
+ void paint_update_temporary_str(struct swappy_state *state, char *event);
+-void paint_update_temporary_text_clip(struct swappy_state *state, gdouble x,
+-                                      gdouble y);
+ void paint_commit_temporary(struct swappy_state *state);
+ 
++/* Text tool. A press either drops a new run, or picks up the one under the
++   pointer -- committed runs come back out of the paint list so they can be
++   retyped and dragged, which is the difference between annotating and
++   getting one shot at it. */
++void paint_text_press(struct swappy_state *state, double x, double y);
++void paint_text_motion(struct swappy_state *state, double x, double y);
++void paint_text_release(struct swappy_state *state);
++/* TRUE when the key belonged to the run being typed; FALSE leaves it to the
++   window's own shortcuts. */
++gboolean paint_text_key(struct swappy_state *state, GdkEventKey *event);
++/* Push the current colour and size onto the run being typed, so the toolbar
++   still means something mid-sentence. */
++void paint_text_restyle(struct swappy_state *state);
++gboolean paint_text_is_editing(struct swappy_state *state);
++
+ void paint_free(gpointer data);
+ void paint_free_all(struct swappy_state *state);
+ void paint_free_list(GList **list);
+diff --git a/include/swappy.h b/include/swappy.h
+index 383ac56..3a31832 100644
+--- a/include/swappy.h
++++ b/include/swappy.h
+@@ -119,6 +119,7 @@ struct swappy_state_ui {
+   GtkIMContext *im_context;
+ 
+   GtkWidget *area;
++  GtkWidget *help_overlay;
+ 
+   GtkToggleButton *panel_toggle_button;
+ 
+@@ -141,6 +142,9 @@ struct swappy_state_ui {
+   GtkRadioButton *custom;
+   GtkColorButton *color;
+ 
++  GtkWidget *stroke_size_box;
++  GtkWidget *text_size_box;
++
+   GtkButton *line_size;
+   GtkButton *text_size;
+   GtkButton *transparency;
+@@ -195,6 +199,14 @@ struct swappy_state {
+   GList *redo_paints;
+   struct swappy_paint *temp_paint;
+ 
++  /* Text tool drag state. `text_grab` is where inside the run the press
++     landed, so dragging carries it from that point instead of snapping its
++     corner to the pointer; `text_pressed_at` is the press itself, which is
++     what tells a drag apart from a click that only moves the caret. */
++  struct swappy_point text_grab;
++  struct swappy_point text_pressed_at;
++  gboolean text_dragging;
++
+   struct swappy_state_settings settings;
+ 
+   int argc;
+diff --git a/include/text.h b/include/text.h
+new file mode 100644
+index 0000000..ae376bb
+--- /dev/null
++++ b/include/text.h
+@@ -0,0 +1,42 @@
++#pragma once
++
++#include <pango/pangocairo.h>
++
++#include "swappy.h"
++
++/* Text measurement and caret arithmetic, shared by the renderer (which draws
++   the run and its caret) and the paint layer (which moves the caret and
++   decides what a click landed on). Both ask the same Pango layout, so what
++   you see is what the keys act on.
++   Positions are image coordinates; offsets are character counts, matching
++   what swappy_paint_text stores -- Pango's byte indices stay inside here. */
++
++/* Caller owns the layout: g_object_unref it. */
++PangoLayout *text_layout_new(const struct swappy_paint_text *text);
++
++gboolean text_is_empty(const struct swappy_paint_text *text);
++
++/* Bounding box of the run, anchored at text->from. Never zero-width, so an
++   empty run still has something to hit and something to outline. */
++void text_extents(const struct swappy_paint_text *text,
++                  struct swappy_box *box);
++
++/* Caret rectangle for the run's current cursor offset. */
++void text_cursor_extents(const struct swappy_paint_text *text,
++                         struct swappy_box *box);
++
++gboolean text_hit(const struct swappy_paint_text *text, double x, double y);
++
++/* Character offset nearest the point -- where a click puts the caret. */
++glong text_offset_at(const struct swappy_paint_text *text, double x, double y);
++
++/* Caret motions. `dir` is -1 for backwards, 1 for forwards. Each clamps to
++   the ends of the run rather than wrapping or refusing to move. */
++glong text_offset_by_char(const struct swappy_paint_text *text, glong cursor,
++                          int dir);
++glong text_offset_by_word(const struct swappy_paint_text *text, glong cursor,
++                          int dir);
++glong text_offset_by_line(const struct swappy_paint_text *text, glong cursor,
++                          int dir);
++glong text_offset_line_edge(const struct swappy_paint_text *text, glong cursor,
++                            int dir);
+diff --git a/meson.build b/meson.build
+index f5a76a7..d6f13d1 100644
+--- a/meson.build
++++ b/meson.build
+@@ -60,6 +60,7 @@ executable(
+ 		'src/paint.c',
+ 		'src/pixbuf.c',
+ 		'src/render.c',
++		'src/text.c',
+ 		'src/util.c',
+ 	]),
+ 	dependencies: [
 diff --git a/res/style/swappy.css b/res/style/swappy.css
-index 66013b3..eb82f2f 100644
+index 66013b3..b203f21 100644
 --- a/res/style/swappy.css
 +++ b/res/style/swappy.css
 @@ -1,6 +1,49 @@
@@ -54,7 +184,7 @@ index 66013b3..eb82f2f 100644
  }
  
  .drawing .text-button radio,
-@@ -8,22 +51,47 @@
+@@ -8,22 +51,59 @@
    padding: 0;
  }
  
@@ -106,9 +236,21 @@ index 66013b3..eb82f2f 100644
 +  min-height: 16px;
 +  padding: 0;
 +  margin: 0;
++}
++
++/* Key hints, toggled with F1 or ?. Same dark surface as the toolbar so the
++   two read as one piece of chrome over the shot. */
++.help-overlay {
++  background-color: rgba(20, 20, 26, 0.96);
++  border: 1px solid rgba(255, 255, 255, 0.10);
++  border-radius: 14px;
++  padding: 18px 22px;
++  color: #d8d8e0;
++  font-family: monospace;
++  font-size: 12px;
  }
 diff --git a/res/swappy.glade b/res/swappy.glade
-index e12a14f..50bab43 100644
+index e12a14f..54542a5 100644
 --- a/res/swappy.glade
 +++ b/res/swappy.glade
 @@ -1,67 +1,13 @@
@@ -186,7 +328,7 @@ index e12a14f..50bab43 100644
    <object class="GtkApplicationWindow" id="paint-window">
      <property name="visible">True</property>
      <property name="can_focus">False</property>
-@@ -76,835 +22,400 @@
+@@ -76,835 +22,450 @@
          <property name="visible">True</property>
          <property name="can_focus">False</property>
          <child>
@@ -199,16 +341,10 @@ index e12a14f..50bab43 100644
 +            <property name="can_focus">False</property>
 +            <property name="halign">center</property>
 +            <property name="valign">center</property>
-             <child>
--              <object class="GtkBox" id="painting-box">
++            <child>
 +              <object class="GtkDrawingArea" id="painting-area">
 +                <property name="visible">True</property>
-                 <property name="can_focus">False</property>
--                <property name="margin_left">10</property>
--                <property name="margin_right">10</property>
--                <property name="margin_top">10</property>
--                <property name="margin_bottom">10</property>
--                <property name="orientation">vertical</property>
++                <property name="can_focus">False</property>
 +                <property name="events">GDK_POINTER_MOTION_MASK | GDK_BUTTON1_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
 +                <signal name="button-press-event" handler="draw_area_button_press_handler" swapped="no"/>
 +                <signal name="button-release-event" handler="draw_area_button_release_handler" swapped="no"/>
@@ -217,6 +353,35 @@ index e12a14f..50bab43 100644
 +                <signal name="motion-notify-event" handler="draw_area_motion_notify_handler" swapped="no"/>
 +              </object>
 +            </child>
++          </object>
++        </child>
++
++        <!-- Key hints, toggled with F1 or ?. A widget rather than something
++             the renderer draws, so it can never end up baked into the saved
++             image. -->
++        <child type="overlay">
++          <object class="GtkLabel" id="help-overlay">
++            <property name="visible">False</property>
++            <property name="no_show_all">True</property>
++            <property name="can_focus">False</property>
++            <property name="halign">center</property>
++            <property name="valign">center</property>
++            <property name="justify">left</property>
++            <property name="use_markup">True</property>
++            <property name="label" translatable="no">&#x3C;b&#x3E;Tools&#x3C;/b&#x3E;  b brush &#xB7; t text &#xB7; r rect &#xB7; o ellipse
++        a arrow &#xB7; d blur &#xB7; f fill &#xB7; x clear
++&#x3C;b&#x3E;Size&#x3C;/b&#x3E;   - smaller &#xB7; + bigger &#xB7; = reset
++&#x3C;b&#x3E;Colour&#x3C;/b&#x3E; Shift + R G B, or C for the custom one
++
++&#x3C;b&#x3E;Text&#x3C;/b&#x3E;   click to place &#xB7; click a run to retype it
++        drag it to move it &#xB7; Enter for a newline
++        Home/End &#xB7; Ctrl+arrows move by word
++        Esc finishes the run and stays here
++
++&#x3C;b&#x3E;Done&#x3C;/b&#x3E;   Enter save + copy &#xB7; Ctrl+C copy only
++        Ctrl+Z undo &#xB7; Esc discard the shot
++        F1 or ? closes this</property>
++            <style><class name="help-overlay"/></style>
 +          </object>
 +        </child>
 +
@@ -233,15 +398,124 @@ index e12a14f..50bab43 100644
 +            </style>
 +
 +            <!-- Tools -->
-+            <child>
+             <child>
+-              <object class="GtkBox" id="painting-box">
 +              <object class="GtkBox">
++                <property name="visible">True</property>
+                 <property name="can_focus">False</property>
+-                <property name="margin_left">10</property>
+-                <property name="margin_right">10</property>
+-                <property name="margin_top">10</property>
+-                <property name="margin_bottom">10</property>
++                <property name="spacing">2</property>
++                <child>
++                  <object class="GtkRadioButton" id="brush">
++                    <property name="label" translatable="no">&#xf1fc;</property>
++                    <property name="visible">True</property>
++                    <property name="can_focus">False</property>
++                    <property name="focus_on_click">False</property>
++                    <property name="receives_default">False</property>
++                    <property name="tooltip_text" translatable="yes">Brush (b)</property>
++                    <property name="active">True</property>
++                    <property name="draw_indicator">False</property>
++                    <signal name="clicked" handler="brush_clicked_handler" swapped="no"/>
++                    <style><class name="text-button"/></style>
++                  </object>
++                </child>
++                <child>
++                  <object class="GtkRadioButton" id="text">
++                    <property name="label" translatable="no">&#xf031;</property>
++                    <property name="visible">True</property>
++                    <property name="can_focus">False</property>
++                    <property name="focus_on_click">False</property>
++                    <property name="receives_default">False</property>
++                    <property name="tooltip_text" translatable="yes">Text (t)</property>
++                    <property name="draw_indicator">False</property>
++                    <property name="group">brush</property>
++                    <signal name="clicked" handler="text_clicked_handler" swapped="no"/>
++                    <style><class name="text-button"/></style>
++                  </object>
++                </child>
++                <child>
++                  <object class="GtkRadioButton" id="rectangle">
++                    <property name="label" translatable="no">&#xf0c8;</property>
++                    <property name="visible">True</property>
++                    <property name="can_focus">False</property>
++                    <property name="focus_on_click">False</property>
++                    <property name="receives_default">False</property>
++                    <property name="tooltip_text" translatable="yes">Rectangle (r)</property>
++                    <property name="draw_indicator">False</property>
++                    <property name="group">brush</property>
++                    <signal name="clicked" handler="rectangle_clicked_handler" swapped="no"/>
++                    <style><class name="text-button"/></style>
++                  </object>
++                </child>
++                <child>
++                  <object class="GtkRadioButton" id="ellipse">
++                    <property name="label" translatable="no">&#xf111;</property>
++                    <property name="visible">True</property>
++                    <property name="can_focus">False</property>
++                    <property name="focus_on_click">False</property>
++                    <property name="receives_default">False</property>
++                    <property name="tooltip_text" translatable="yes">Ellipse (o)</property>
++                    <property name="draw_indicator">False</property>
++                    <property name="group">brush</property>
++                    <signal name="clicked" handler="ellipse_clicked_handler" swapped="no"/>
++                    <style><class name="text-button"/></style>
++                  </object>
++                </child>
++                <child>
++                  <object class="GtkRadioButton" id="arrow">
++                    <property name="label" translatable="no">&#xf063;</property>
++                    <property name="visible">True</property>
++                    <property name="can_focus">False</property>
++                    <property name="focus_on_click">False</property>
++                    <property name="receives_default">False</property>
++                    <property name="tooltip_text" translatable="yes">Arrow (a)</property>
++                    <property name="draw_indicator">False</property>
++                    <property name="group">brush</property>
++                    <signal name="clicked" handler="arrow_clicked_handler" swapped="no"/>
++                    <style><class name="text-button"/></style>
++                  </object>
++                </child>
++                <child>
++                  <object class="GtkRadioButton" id="blur">
++                    <property name="label" translatable="no">&#xf043;</property>
++                    <property name="visible">True</property>
++                    <property name="can_focus">False</property>
++                    <property name="focus_on_click">False</property>
++                    <property name="receives_default">False</property>
++                    <property name="tooltip_text" translatable="yes">Blur (d)</property>
++                    <property name="draw_indicator">False</property>
++                    <property name="group">brush</property>
++                    <signal name="clicked" handler="blur_clicked_handler" swapped="no"/>
++                    <style><class name="text-button"/></style>
++                  </object>
++                </child>
++                <style><class name="drawing"/></style>
++              </object>
++            </child>
++
++            <child>
++              <object class="GtkSeparator">
++                <property name="visible">True</property>
+                 <property name="orientation">vertical</property>
++                <property name="margin_start">6</property>
++                <property name="margin_end">6</property>
++                <property name="margin_top">4</property>
++                <property name="margin_bottom">4</property>
++              </object>
++            </child>
++
++            <!-- Colours -->
++            <child>
++              <object class="GtkBox" id="brush-box">
 +                <property name="visible">True</property>
 +                <property name="can_focus">False</property>
 +                <property name="spacing">2</property>
                  <child>
 -                  <object class="GtkBox">
-+                  <object class="GtkRadioButton" id="brush">
-+                    <property name="label" translatable="no">&#xf1fc;</property>
++                  <object class="GtkRadioButton" id="color-red-button">
                      <property name="visible">True</property>
                      <property name="can_focus">False</property>
 -                    <property name="homogeneous">True</property>
@@ -269,12 +543,19 @@ index e12a14f..50bab43 100644
 -                        <property name="position">1</property>
 -                      </packing>
 -                    </child>
--                    <child>
++                    <property name="focus_on_click">False</property>
++                    <property name="receives_default">True</property>
++                    <property name="valign">center</property>
++                    <property name="tooltip_text" translatable="yes">Red (Shift+R)</property>
++                    <property name="draw_indicator">False</property>
++                    <signal name="clicked" handler="color_red_clicked_handler" swapped="no"/>
+                     <child>
 -                      <object class="GtkLabel">
--                        <property name="visible">True</property>
--                        <property name="can_focus">False</property>
++                      <object class="GtkImage">
+                         <property name="visible">True</property>
+                         <property name="can_focus">False</property>
 -                        <property name="label" translatable="no">R</property>
--                      </object>
+                       </object>
 -                      <packing>
 -                        <property name="expand">False</property>
 -                        <property name="fill">True</property>
@@ -316,14 +597,8 @@ index e12a14f..50bab43 100644
 -                        <property name="fill">True</property>
 -                        <property name="position">5</property>
 -                      </packing>
--                    </child>
-+                    <property name="focus_on_click">False</property>
-+                    <property name="receives_default">False</property>
-+                    <property name="tooltip_text" translatable="yes">Brush (b)</property>
-+                    <property name="active">True</property>
-+                    <property name="draw_indicator">False</property>
-+                    <signal name="clicked" handler="brush_clicked_handler" swapped="no"/>
-+                    <style><class name="text-button"/></style>
+                     </child>
++                    <style><class name="color-red"/></style>
                    </object>
 -                  <packing>
 -                    <property name="expand">False</property>
@@ -333,8 +608,7 @@ index e12a14f..50bab43 100644
                  </child>
                  <child>
 -                  <object class="GtkBox">
-+                  <object class="GtkRadioButton" id="text">
-+                    <property name="label" translatable="no">&#xf031;</property>
++                  <object class="GtkRadioButton" id="color-green-button">
                      <property name="visible">True</property>
                      <property name="can_focus">False</property>
 -                    <property name="margin_bottom">15</property>
@@ -372,22 +646,30 @@ index e12a14f..50bab43 100644
 -                        <property name="position">1</property>
 -                      </packing>
 -                    </child>
--                    <child>
++                    <property name="focus_on_click">False</property>
++                    <property name="receives_default">True</property>
++                    <property name="valign">center</property>
++                    <property name="tooltip_text" translatable="yes">Green (Shift+G)</property>
++                    <property name="draw_indicator">False</property>
++                    <property name="group">color-red-button</property>
++                    <signal name="clicked" handler="color_green_clicked_handler" swapped="no"/>
+                     <child>
 -                      <object class="GtkRadioButton" id="rectangle">
 -                        <property name="label" translatable="no"></property>
--                        <property name="visible">True</property>
--                        <property name="can_focus">False</property>
++                      <object class="GtkImage">
+                         <property name="visible">True</property>
+                         <property name="can_focus">False</property>
 -                        <property name="receives_default">False</property>
 -                        <property name="draw_indicator">False</property>
 -                        <property name="group">brush</property>
 -                        <signal name="clicked" handler="rectangle_clicked_handler" swapped="no"/>
--                      </object>
+                       </object>
 -                      <packing>
 -                        <property name="expand">False</property>
 -                        <property name="fill">True</property>
 -                        <property name="position">2</property>
 -                      </packing>
--                    </child>
+                     </child>
 -                    <child>
 -                      <object class="GtkRadioButton" id="ellipse">
 -                        <property name="label" translatable="no"></property>
@@ -439,13 +721,7 @@ index e12a14f..50bab43 100644
 -                    <style>
 -                      <class name="drawing"/>
 -                    </style>
-+                    <property name="focus_on_click">False</property>
-+                    <property name="receives_default">False</property>
-+                    <property name="tooltip_text" translatable="yes">Text (t)</property>
-+                    <property name="draw_indicator">False</property>
-+                    <property name="group">brush</property>
-+                    <signal name="clicked" handler="text_clicked_handler" swapped="no"/>
-+                    <style><class name="text-button"/></style>
++                    <style><class name="color-green"/></style>
                    </object>
 -                  <packing>
 -                    <property name="expand">False</property>
@@ -455,16 +731,23 @@ index e12a14f..50bab43 100644
                  </child>
                  <child>
 -                  <object class="GtkBox" id="brush-box">
-+                  <object class="GtkRadioButton" id="rectangle">
-+                    <property name="label" translatable="no">&#xf0c8;</property>
++                  <object class="GtkRadioButton" id="color-blue-button">
                      <property name="visible">True</property>
                      <property name="can_focus">False</property>
 -                    <property name="halign">center</property>
 -                    <property name="margin_bottom">15</property>
--                    <child>
++                    <property name="focus_on_click">False</property>
++                    <property name="receives_default">True</property>
++                    <property name="valign">center</property>
++                    <property name="tooltip_text" translatable="yes">Blue (Shift+B)</property>
++                    <property name="draw_indicator">False</property>
++                    <property name="group">color-red-button</property>
++                    <signal name="clicked" handler="color_blue_clicked_handler" swapped="no"/>
+                     <child>
 -                      <object class="GtkBox">
--                        <property name="visible">True</property>
--                        <property name="can_focus">False</property>
++                      <object class="GtkImage">
+                         <property name="visible">True</property>
+                         <property name="can_focus">False</property>
 -                        <property name="halign">start</property>
 -                        <property name="valign">baseline</property>
 -                        <property name="spacing">10</property>
@@ -548,7 +831,7 @@ index e12a14f..50bab43 100644
 -                        <style>
 -                          <class name="color-box"/>
 -                        </style>
--                      </object>
+                       </object>
 -                      <packing>
 -                        <property name="expand">False</property>
 -                        <property name="fill">True</property>
@@ -608,14 +891,8 @@ index e12a14f..50bab43 100644
 -                        <property name="padding">25</property>
 -                        <property name="position">1</property>
 -                      </packing>
--                    </child>
-+                    <property name="focus_on_click">False</property>
-+                    <property name="receives_default">False</property>
-+                    <property name="tooltip_text" translatable="yes">Rectangle (r)</property>
-+                    <property name="draw_indicator">False</property>
-+                    <property name="group">brush</property>
-+                    <signal name="clicked" handler="rectangle_clicked_handler" swapped="no"/>
-+                    <style><class name="text-button"/></style>
+                     </child>
++                    <style><class name="color-blue"/></style>
                    </object>
 -                  <packing>
 -                    <property name="expand">False</property>
@@ -625,8 +902,7 @@ index e12a14f..50bab43 100644
                  </child>
                  <child>
 -                  <object class="GtkBox">
-+                  <object class="GtkRadioButton" id="ellipse">
-+                    <property name="label" translatable="no">&#xf111;</property>
++                  <object class="GtkRadioButton" id="color-custom-button">
                      <property name="visible">True</property>
                      <property name="can_focus">False</property>
 -                    <property name="margin_bottom">10</property>
@@ -659,103 +935,27 @@ index e12a14f..50bab43 100644
 -                        <property name="position">1</property>
 -                      </packing>
 -                    </child>
-+                    <property name="focus_on_click">False</property>
-+                    <property name="receives_default">False</property>
-+                    <property name="tooltip_text" translatable="yes">Ellipse (o)</property>
-+                    <property name="draw_indicator">False</property>
-+                    <property name="group">brush</property>
-+                    <signal name="clicked" handler="ellipse_clicked_handler" swapped="no"/>
-+                    <style><class name="text-button"/></style>
-+                  </object>
-+                </child>
-+                <child>
-+                  <object class="GtkRadioButton" id="arrow">
-+                    <property name="label" translatable="no">&#xf063;</property>
-+                    <property name="visible">True</property>
-+                    <property name="can_focus">False</property>
-+                    <property name="focus_on_click">False</property>
-+                    <property name="receives_default">False</property>
-+                    <property name="tooltip_text" translatable="yes">Arrow (a)</property>
-+                    <property name="draw_indicator">False</property>
-+                    <property name="group">brush</property>
-+                    <signal name="clicked" handler="arrow_clicked_handler" swapped="no"/>
-+                    <style><class name="text-button"/></style>
-+                  </object>
-+                </child>
-+                <child>
-+                  <object class="GtkRadioButton" id="blur">
-+                    <property name="label" translatable="no">&#xf043;</property>
-+                    <property name="visible">True</property>
-+                    <property name="can_focus">False</property>
-+                    <property name="focus_on_click">False</property>
-+                    <property name="receives_default">False</property>
-+                    <property name="tooltip_text" translatable="yes">Blur (d)</property>
-+                    <property name="draw_indicator">False</property>
-+                    <property name="group">brush</property>
-+                    <signal name="clicked" handler="blur_clicked_handler" swapped="no"/>
-+                    <style><class name="text-button"/></style>
-+                  </object>
-+                </child>
-+                <style><class name="drawing"/></style>
-+              </object>
-+            </child>
-+
-+            <child>
-+              <object class="GtkSeparator">
-+                <property name="visible">True</property>
-+                <property name="orientation">vertical</property>
-+                <property name="margin_start">6</property>
-+                <property name="margin_end">6</property>
-+                <property name="margin_top">4</property>
-+                <property name="margin_bottom">4</property>
-+              </object>
-+            </child>
-+
-+            <!-- Colours -->
-+            <child>
-+              <object class="GtkBox" id="brush-box">
-+                <property name="visible">True</property>
-+                <property name="can_focus">False</property>
-+                <property name="spacing">2</property>
-+                <child>
-+                  <object class="GtkRadioButton" id="color-red-button">
-+                    <property name="visible">True</property>
-+                    <property name="can_focus">False</property>
-+                    <property name="focus_on_click">False</property>
-+                    <property name="receives_default">True</property>
-+                    <property name="valign">center</property>
-+                    <property name="tooltip_text" translatable="yes">Red (Shift+R)</property>
-+                    <property name="draw_indicator">False</property>
-+                    <signal name="clicked" handler="color_red_clicked_handler" swapped="no"/>
-                     <child>
+-                    <child>
 -                      <object class="GtkButton" id="stroke-size-button">
-+                      <object class="GtkImage">
-                         <property name="visible">True</property>
-                         <property name="can_focus">False</property>
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
 -                        <property name="receives_default">True</property>
 -                        <property name="always_show_image">True</property>
 -                        <signal name="clicked" handler="stroke_size_reset_handler" swapped="no"/>
-                       </object>
+-                      </object>
 -                      <packing>
 -                        <property name="expand">False</property>
 -                        <property name="fill">True</property>
 -                        <property name="position">2</property>
 -                      </packing>
-                     </child>
-+                    <style><class name="color-red"/></style>
-+                  </object>
-+                </child>
-+                <child>
-+                  <object class="GtkRadioButton" id="color-green-button">
-+                    <property name="visible">True</property>
-+                    <property name="can_focus">False</property>
+-                    </child>
 +                    <property name="focus_on_click">False</property>
 +                    <property name="receives_default">True</property>
 +                    <property name="valign">center</property>
-+                    <property name="tooltip_text" translatable="yes">Green (Shift+G)</property>
++                    <property name="tooltip_text" translatable="yes">Custom colour (Shift+C)</property>
 +                    <property name="draw_indicator">False</property>
 +                    <property name="group">color-red-button</property>
-+                    <signal name="clicked" handler="color_green_clicked_handler" swapped="no"/>
++                    <signal name="clicked" handler="color_custom_clicked_handler" swapped="no"/>
                      <child>
 -                      <object class="GtkButton" id="plus-button">
 +                      <object class="GtkImage">
@@ -772,7 +972,7 @@ index e12a14f..50bab43 100644
 -                        <property name="position">3</property>
 -                      </packing>
                      </child>
-+                    <style><class name="color-green"/></style>
++                    <style><class name="color-custom"/></style>
                    </object>
 -                  <packing>
 -                    <property name="expand">False</property>
@@ -782,26 +982,19 @@ index e12a14f..50bab43 100644
                  </child>
                  <child>
 -                  <object class="GtkBox">
-+                  <object class="GtkRadioButton" id="color-blue-button">
++                  <object class="GtkColorButton" id="custom-color-button">
                      <property name="visible">True</property>
++                    <property name="sensitive">False</property>
                      <property name="can_focus">False</property>
 -                    <property name="margin_bottom">10</property>
 -                    <property name="spacing">2</property>
 -                    <property name="homogeneous">True</property>
-+                    <property name="focus_on_click">False</property>
-+                    <property name="receives_default">True</property>
-+                    <property name="valign">center</property>
-+                    <property name="tooltip_text" translatable="yes">Blue (Shift+B)</property>
-+                    <property name="draw_indicator">False</property>
-+                    <property name="group">color-red-button</property>
-+                    <signal name="clicked" handler="color_blue_clicked_handler" swapped="no"/>
-                     <child>
+-                    <child>
 -                      <object class="GtkLabel">
-+                      <object class="GtkImage">
-                         <property name="visible">True</property>
-                         <property name="can_focus">False</property>
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
 -                        <property name="label" translatable="yes">Text Size</property>
-                       </object>
+-                      </object>
 -                      <packing>
 -                        <property name="expand">False</property>
 -                        <property name="fill">True</property>
@@ -851,8 +1044,12 @@ index e12a14f..50bab43 100644
 -                        <property name="fill">False</property>
 -                        <property name="position">3</property>
 -                      </packing>
-                     </child>
-+                    <style><class name="color-blue"/></style>
+-                    </child>
++                    <property name="receives_default">True</property>
++                    <property name="valign">center</property>
++                    <property name="title" translatable="yes"/>
++                    <property name="rgba">rgb(235,77,75)</property>
++                    <signal name="color-set" handler="color_custom_color_set_handler" swapped="no"/>
                    </object>
 -                  <packing>
 -                    <property name="expand">False</property>
@@ -860,9 +1057,32 @@ index e12a14f..50bab43 100644
 -                    <property name="position">4</property>
 -                  </packing>
                  </child>
++                <style><class name="color-box"/></style>
++              </object>
++            </child>
++
++            <child>
++              <object class="GtkSeparator">
++                <property name="visible">True</property>
++                <property name="orientation">vertical</property>
++                <property name="margin_start">6</property>
++                <property name="margin_end">6</property>
++                <property name="margin_top">4</property>
++                <property name="margin_bottom">4</property>
++              </object>
++            </child>
++
++            <!-- Size. One stepper at a time: the stroke one for the tools
++                 that draw a line, the text one for the text tool. Both mean
++                 the same three keys, - = and +. -->
++            <child>
++              <object class="GtkBox" id="stroke-size-box">
++                <property name="visible">True</property>
++                <property name="can_focus">False</property>
                  <child>
 -                  <object class="GtkBox">
-+                  <object class="GtkRadioButton" id="color-custom-button">
++                  <object class="GtkButton" id="minus-button">
++                    <property name="label" translatable="no">&#x2212;</property>
                      <property name="visible">True</property>
 -                    <property name="can-focus">False</property>
 -                    <property name="margin-bottom">10</property>
@@ -909,32 +1129,26 @@ index e12a14f..50bab43 100644
 -                        <property name="position">2</property>
 -                      </packing>
 -                    </child>
-+                    <property name="can_focus">False</property>
-+                    <property name="focus_on_click">False</property>
-+                    <property name="receives_default">True</property>
-+                    <property name="valign">center</property>
-+                    <property name="tooltip_text" translatable="yes">Custom colour (Shift+C)</property>
-+                    <property name="draw_indicator">False</property>
-+                    <property name="group">color-red-button</property>
-+                    <signal name="clicked" handler="color_custom_clicked_handler" swapped="no"/>
-                     <child>
+-                    <child>
 -                      <object class="GtkButton" id="transparency-plus-button">
-+                      <object class="GtkImage">
-                         <property name="visible">True</property>
+-                        <property name="visible">True</property>
 -                        <property name="can-focus">True</property>
 -                        <property name="receives-default">True</property>
 -                        <property name="image">zoom-in2</property>
 -                        <property name="always-show-image">True</property>
 -                        <signal name="clicked" handler="transparency_increase_handler" swapped="no"/>
-+                        <property name="can_focus">False</property>
-                       </object>
+-                      </object>
 -                      <packing>
 -                        <property name="expand">False</property>
 -                        <property name="fill">False</property>
 -                        <property name="position">3</property>
 -                      </packing>
-                     </child>
-+                    <style><class name="color-custom"/></style>
+-                    </child>
++                    <property name="can_focus">False</property>
++                    <property name="focus_on_click">False</property>
++                    <property name="receives_default">True</property>
++                    <property name="tooltip_text" translatable="yes">Thinner (-)</property>
++                    <signal name="clicked" handler="stroke_size_decrease_handler" swapped="no"/>
                    </object>
 -                  <packing>
 -                    <property name="expand">False</property>
@@ -944,7 +1158,7 @@ index e12a14f..50bab43 100644
                  </child>
                  <child>
 -                  <object class="GtkBox">
-+                  <object class="GtkColorButton" id="custom-color-button">
++                  <object class="GtkButton" id="stroke-size-button">
                      <property name="visible">True</property>
 -                    <property name="can-focus">False</property>
 -                    <property name="homogeneous">True</property>
@@ -982,13 +1196,11 @@ index e12a14f..50bab43 100644
 -                        <property name="position">2</property>
 -                      </packing>
 -                    </child>
-+                    <property name="sensitive">False</property>
 +                    <property name="can_focus">False</property>
++                    <property name="focus_on_click">False</property>
 +                    <property name="receives_default">True</property>
-+                    <property name="valign">center</property>
-+                    <property name="title" translatable="yes"/>
-+                    <property name="rgba">rgb(235,77,75)</property>
-+                    <signal name="color-set" handler="color_custom_color_set_handler" swapped="no"/>
++                    <property name="tooltip_text" translatable="yes">Reset size (=)</property>
++                    <signal name="clicked" handler="stroke_size_reset_handler" swapped="no"/>
                    </object>
 -                  <packing>
 -                    <property name="expand">False</property>
@@ -996,7 +1208,18 @@ index e12a14f..50bab43 100644
 -                    <property name="position">6</property>
 -                  </packing>
                  </child>
-+                <style><class name="color-box"/></style>
++                <child>
++                  <object class="GtkButton" id="plus-button">
++                    <property name="label" translatable="no">+</property>
++                    <property name="visible">True</property>
++                    <property name="can_focus">False</property>
++                    <property name="focus_on_click">False</property>
++                    <property name="receives_default">True</property>
++                    <property name="tooltip_text" translatable="yes">Thicker (+)</property>
++                    <signal name="clicked" handler="stroke_size_increase_handler" swapped="no"/>
++                  </object>
++                </child>
++                <style><class name="linked"/></style>
                </object>
 -              <packing>
 -                <property name="resize">False</property>
@@ -1006,37 +1229,26 @@ index e12a14f..50bab43 100644
 +
              <child>
 -              <object class="GtkFixed">
-+              <object class="GtkSeparator">
-+                <property name="visible">True</property>
-+                <property name="orientation">vertical</property>
-+                <property name="margin_start">6</property>
-+                <property name="margin_end">6</property>
-+                <property name="margin_top">4</property>
-+                <property name="margin_bottom">4</property>
-+              </object>
-+            </child>
-+
-+            <!-- Stroke size -->
-+            <child>
-+              <object class="GtkBox">
-                 <property name="visible">True</property>
+-                <property name="visible">True</property>
++              <object class="GtkBox" id="text-size-box">
++                <property name="visible">False</property>
                  <property name="can_focus">False</property>
 -                <property name="halign">center</property>
 -                <property name="valign">center</property>
                  <child>
 -                  <object class="GtkDrawingArea" id="painting-area">
-+                  <object class="GtkButton" id="minus-button">
++                  <object class="GtkButton" id="text-minus-button">
 +                    <property name="label" translatable="no">&#x2212;</property>
 +                    <property name="visible">True</property>
 +                    <property name="can_focus">False</property>
 +                    <property name="focus_on_click">False</property>
 +                    <property name="receives_default">True</property>
-+                    <property name="tooltip_text" translatable="yes">Thinner (-)</property>
-+                    <signal name="clicked" handler="stroke_size_decrease_handler" swapped="no"/>
++                    <property name="tooltip_text" translatable="yes">Smaller text (-)</property>
++                    <signal name="clicked" handler="text_size_decrease_handler" swapped="no"/>
 +                  </object>
 +                </child>
 +                <child>
-+                  <object class="GtkButton" id="stroke-size-button">
++                  <object class="GtkButton" id="text-size-button">
                      <property name="visible">True</property>
                      <property name="can_focus">False</property>
 -                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_BUTTON1_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
@@ -1051,19 +1263,19 @@ index e12a14f..50bab43 100644
 -                    <signal name="motion-notify-event" handler="draw_area_motion_notify_handler" swapped="no"/>
 +                    <property name="focus_on_click">False</property>
 +                    <property name="receives_default">True</property>
-+                    <property name="tooltip_text" translatable="yes">Reset size (=)</property>
-+                    <signal name="clicked" handler="stroke_size_reset_handler" swapped="no"/>
++                    <property name="tooltip_text" translatable="yes">Reset text size (=)</property>
++                    <signal name="clicked" handler="text_size_reset_handler" swapped="no"/>
                    </object>
                  </child>
 +                <child>
-+                  <object class="GtkButton" id="plus-button">
++                  <object class="GtkButton" id="text-plus-button">
 +                    <property name="label" translatable="no">+</property>
 +                    <property name="visible">True</property>
 +                    <property name="can_focus">False</property>
 +                    <property name="focus_on_click">False</property>
 +                    <property name="receives_default">True</property>
-+                    <property name="tooltip_text" translatable="yes">Thicker (+)</property>
-+                    <signal name="clicked" handler="stroke_size_increase_handler" swapped="no"/>
++                    <property name="tooltip_text" translatable="yes">Bigger text (+)</property>
++                    <signal name="clicked" handler="text_size_increase_handler" swapped="no"/>
 +                  </object>
 +                </child>
 +                <style><class name="linked"/></style>
@@ -1208,7 +1420,7 @@ index e12a14f..50bab43 100644
              <child>
 -              <object class="GtkButton" id="copy">
 -                <property name="visible">True</property>
-+              <object class="GtkButton" id="text-minus-button">
++              <object class="GtkButton" id="transparency-minus-button">
 +                <property name="visible">False</property>
                  <property name="can_focus">False</property>
 -                <property name="receives_default">True</property>
@@ -1216,7 +1428,7 @@ index e12a14f..50bab43 100644
 -                <property name="image">img-copy-surface</property>
 -                <property name="always_show_image">True</property>
 -                <signal name="clicked" handler="copy_clicked_handler" swapped="no"/>
-+                <signal name="clicked" handler="text_size_decrease_handler" swapped="no"/>
++                <signal name="clicked" handler="transparency_decrease_handler" swapped="no"/>
                </object>
 -              <packing>
 -                <property name="expand">False</property>
@@ -1227,7 +1439,7 @@ index e12a14f..50bab43 100644
              <child>
 -              <object class="GtkButton" id="save">
 -                <property name="visible">True</property>
-+              <object class="GtkButton" id="text-size-button">
++              <object class="GtkButton" id="transparency-button">
 +                <property name="visible">False</property>
                  <property name="can_focus">False</property>
 -                <property name="receives_default">True</property>
@@ -1235,7 +1447,7 @@ index e12a14f..50bab43 100644
 -                <property name="image">img-save-surface</property>
 -                <property name="always_show_image">True</property>
 -                <signal name="clicked" handler="save_clicked_handler" swapped="no"/>
-+                <signal name="clicked" handler="text_size_reset_handler" swapped="no"/>
++                <signal name="clicked" handler="transparency_reset_handler" swapped="no"/>
                </object>
 -              <packing>
 -                <property name="expand">False</property>
@@ -1257,27 +1469,6 @@ index e12a14f..50bab43 100644
              <child>
 -              <object class="GtkSeparator">
 -                <property name="visible">True</property>
-+              <object class="GtkButton" id="text-plus-button">
-+                <property name="visible">False</property>
-+                <property name="can_focus">False</property>
-+                <signal name="clicked" handler="text_size_increase_handler" swapped="no"/>
-+              </object>
-+            </child>
-+            <child>
-+              <object class="GtkButton" id="transparency-minus-button">
-+                <property name="visible">False</property>
-+                <property name="can_focus">False</property>
-+                <signal name="clicked" handler="transparency_decrease_handler" swapped="no"/>
-+              </object>
-+            </child>
-+            <child>
-+              <object class="GtkButton" id="transparency-button">
-+                <property name="visible">False</property>
-+                <property name="can_focus">False</property>
-+                <signal name="clicked" handler="transparency_reset_handler" swapped="no"/>
-+              </object>
-+            </child>
-+            <child>
 +              <object class="GtkButton" id="transparency-plus-button">
 +                <property name="visible">False</property>
 +                <property name="can_focus">False</property>
@@ -1311,10 +1502,199 @@ index e12a14f..50bab43 100644
        </object>
      </child>
 diff --git a/src/application.c b/src/application.c
-index 975e572..9327e63 100644
+index 975e572..11b80e8 100644
 --- a/src/application.c
 +++ b/src/application.c
-@@ -460,6 +460,15 @@ void window_keypress_handler(GtkWidget *widget, GdkEventKey *event,
+@@ -14,6 +14,9 @@
+ #include "render.h"
+ #include "swappy.h"
+ 
++static void commit_state(struct swappy_state *state);
++
++
+ static void update_ui_undo_redo(struct swappy_state *state) {
+   GtkWidget *undo = GTK_WIDGET(state->ui->undo);
+   GtkWidget *redo = GTK_WIDGET(state->ui->redo);
+@@ -124,6 +127,18 @@ static void action_clear(struct swappy_state *state) {
+   update_ui_undo_redo(state);
+ }
+ 
++/* The hints are a widget over the image, not something the renderer draws,
++   so toggling them can never change what gets saved. */
++static void action_toggle_help(struct swappy_state *state) {
++  GtkWidget *help = state->ui->help_overlay;
++
++  if (help == NULL) {
++    return;
++  }
++
++  gtk_widget_set_visible(help, !gtk_widget_get_visible(help));
++}
++
+ static void action_toggle_painting_panel(struct swappy_state *state,
+                                          gboolean *toggled) {
+   state->ui->panel_toggled =
+@@ -140,6 +155,13 @@ static void action_update_color_state(struct swappy_state *state, double r,
+   state->settings.a = a;
+ 
+   gtk_widget_set_sensitive(GTK_WIDGET(state->ui->color), custom);
++
++  /* Picking a colour mid-sentence should recolour what is being typed, not
++     only whatever is drawn next. */
++  if (paint_text_is_editing(state)) {
++    paint_text_restyle(state);
++    render_state(state);
++  }
+ }
+ 
+ static void action_set_color_from_custom(struct swappy_state *state) {
+@@ -150,33 +172,57 @@ static void action_set_color_from_custom(struct swappy_state *state) {
+                             color.alpha, true);
+ }
+ 
++/* Only the stepper that applies to the selected tool is on the bar, so the
++   number showing is always the one - = + will change. */
++static void update_ui_size_steppers(struct swappy_state *state) {
++  gboolean is_text = (state->mode == SWAPPY_PAINT_MODE_TEXT);
++
++  if (state->ui->stroke_size_box) {
++    gtk_widget_set_visible(state->ui->stroke_size_box, !is_text);
++  }
++  if (state->ui->text_size_box) {
++    gtk_widget_set_visible(state->ui->text_size_box, is_text);
++  }
++}
++
+ static void switch_mode_to_brush(struct swappy_state *state) {
++  commit_state(state);
+   state->mode = SWAPPY_PAINT_MODE_BRUSH;
++  update_ui_size_steppers(state);
+   gtk_widget_set_sensitive(GTK_WIDGET(state->ui->fill_shape), false);
+ }
+ 
+ static void switch_mode_to_text(struct swappy_state *state) {
+   state->mode = SWAPPY_PAINT_MODE_TEXT;
++  update_ui_size_steppers(state);
+   gtk_widget_set_sensitive(GTK_WIDGET(state->ui->fill_shape), false);
+ }
+ 
+ static void switch_mode_to_rectangle(struct swappy_state *state) {
++  commit_state(state);
+   state->mode = SWAPPY_PAINT_MODE_RECTANGLE;
++  update_ui_size_steppers(state);
+   gtk_widget_set_sensitive(GTK_WIDGET(state->ui->fill_shape), true);
+ }
+ 
+ static void switch_mode_to_ellipse(struct swappy_state *state) {
++  commit_state(state);
+   state->mode = SWAPPY_PAINT_MODE_ELLIPSE;
++  update_ui_size_steppers(state);
+   gtk_widget_set_sensitive(GTK_WIDGET(state->ui->fill_shape), true);
+ }
+ 
+ static void switch_mode_to_arrow(struct swappy_state *state) {
++  commit_state(state);
+   state->mode = SWAPPY_PAINT_MODE_ARROW;
++  update_ui_size_steppers(state);
+   gtk_widget_set_sensitive(GTK_WIDGET(state->ui->fill_shape), false);
+ }
+ 
+ static void switch_mode_to_blur(struct swappy_state *state) {
++  commit_state(state);
+   state->mode = SWAPPY_PAINT_MODE_BLUR;
++  update_ui_size_steppers(state);
+   gtk_widget_set_sensitive(GTK_WIDGET(state->ui->fill_shape), false);
+ }
+ 
+@@ -218,10 +264,18 @@ static void action_text_size_decrease(struct swappy_state *state) {
+   }
+ 
+   update_ui_text_size_widget(state);
++  if (paint_text_is_editing(state)) {
++    paint_text_restyle(state);
++    render_state(state);
++  }
+ }
+ static void action_text_size_reset(struct swappy_state *state) {
+   state->settings.t = state->config->text_size;
+   update_ui_text_size_widget(state);
++  if (paint_text_is_editing(state)) {
++    paint_text_restyle(state);
++    render_state(state);
++  }
+ }
+ static void action_text_size_increase(struct swappy_state *state) {
+   guint step = state->settings.t >= 20 ? 5 : 1;
+@@ -232,6 +286,10 @@ static void action_text_size_increase(struct swappy_state *state) {
+   }
+ 
+   update_ui_text_size_widget(state);
++  if (paint_text_is_editing(state)) {
++    paint_text_restyle(state);
++    render_state(state);
++  }
+ }
+ 
+ static void action_transparency_decrease(struct swappy_state *state) {
+@@ -336,6 +394,10 @@ static void screen_coordinates_to_image_coordinates(struct swappy_state *state,
+ }
+ 
+ static void commit_state(struct swappy_state *state) {
++  if (state->temp_paint == NULL) {
++    return;
++  }
++
+   paint_commit_temporary(state);
+   paint_free_list(&state->redo_paints);
+   render_state(state);
+@@ -424,24 +486,41 @@ static void clipboard_paste_selection(struct swappy_state *state) {
+ 
+ void window_keypress_handler(GtkWidget *widget, GdkEventKey *event,
+                              struct swappy_state *state) {
+-  if (state->temp_paint && state->mode == SWAPPY_PAINT_MODE_TEXT) {
++  if (paint_text_is_editing(state)) {
+     /* ctrl-v: paste */
+     if (event->state & GDK_CONTROL_MASK && event->keyval == GDK_KEY_v) {
+       clipboard_paste_selection(state);
+-    } else {
+-      paint_update_temporary_text(state, event);
++      render_state(state);
++      return;
++    }
++    /* Anything the run being typed does not claim -- Ctrl+S, Ctrl+Z,
++       Ctrl+Enter -- falls through to the window's own shortcuts below, which
++       commit the run first. */
++    if (paint_text_key(state, event)) {
++      render_state(state);
++      update_ui_undo_redo(state);
++      return;
+     }
+-    render_state(state);
+-    return;
+   }
+   if (event->state & GDK_CONTROL_MASK) {
+     switch (event->keyval) {
+       case GDK_KEY_c:
++        commit_state(state);
+         clipboard_copy_drawing_area_to_selection(state);
+         break;
+       case GDK_KEY_s:
++        commit_state(state);
+         save_state_to_file_or_folder(state, NULL);
+         break;
++      /* Ctrl+Enter finishes while text is being typed, where a bare Enter is
++         a newline. */
++      case GDK_KEY_Return:
++      case GDK_KEY_KP_Enter:
++        commit_state(state);
++        save_state_to_file_or_folder(state, NULL);
++        maybe_save_output_file(state);
++        gtk_main_quit();
++        break;
+       case GDK_KEY_b:
+         action_toggle_painting_panel(state, NULL);
+         break;
+@@ -460,6 +539,16 @@ void window_keypress_handler(GtkWidget *widget, GdkEventKey *event,
      }
    } else {
      switch (event->keyval) {
@@ -1323,6 +1703,7 @@ index 975e572..9327e63 100644
 +         -- one copy of the image, one place it can go wrong. */
 +      case GDK_KEY_Return:
 +      case GDK_KEY_KP_Enter:
++        commit_state(state);
 +        save_state_to_file_or_folder(state, NULL);
 +        maybe_save_output_file(state);
 +        gtk_main_quit();
@@ -1330,7 +1711,96 @@ index 975e572..9327e63 100644
        case GDK_KEY_Escape:
        case GDK_KEY_q:
          maybe_save_output_file(state);
-@@ -781,7 +790,11 @@ static void compute_window_size_and_scaling_factor(struct swappy_state *state) {
+@@ -515,14 +604,25 @@ void window_keypress_handler(GtkWidget *widget, GdkEventKey *event,
+         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(state->ui->custom),
+                                      true);
+         break;
++      /* One pair of size keys, pointed at whatever the selected tool
++         actually sizes. */
+       case GDK_KEY_minus:
+-        action_stroke_size_decrease(state);
++        if (state->mode == SWAPPY_PAINT_MODE_TEXT)
++          action_text_size_decrease(state);
++        else
++          action_stroke_size_decrease(state);
+         break;
+       case GDK_KEY_equal:
+-        action_stroke_size_reset(state);
++        if (state->mode == SWAPPY_PAINT_MODE_TEXT)
++          action_text_size_reset(state);
++        else
++          action_stroke_size_reset(state);
+         break;
+       case GDK_KEY_plus:
+-        action_stroke_size_increase(state);
++        if (state->mode == SWAPPY_PAINT_MODE_TEXT)
++          action_text_size_increase(state);
++        else
++          action_stroke_size_increase(state);
+         break;
+       case GDK_KEY_Control_L:
+         control_modifier_changed(true, state);
+@@ -530,6 +630,10 @@ void window_keypress_handler(GtkWidget *widget, GdkEventKey *event,
+       case GDK_KEY_f:
+         action_fill_shape_toggle(state, NULL);
+         break;
++      case GDK_KEY_F1:
++      case GDK_KEY_question:
++        action_toggle_help(state);
++        break;
+       case GDK_KEY_T:
+         action_transparent_toggle(state, NULL);
+         break;
+@@ -620,11 +724,15 @@ void draw_area_button_press_handler(GtkWidget *widget, GdkEventButton *event,
+       case SWAPPY_PAINT_MODE_RECTANGLE:
+       case SWAPPY_PAINT_MODE_ELLIPSE:
+       case SWAPPY_PAINT_MODE_ARROW:
+-      case SWAPPY_PAINT_MODE_TEXT:
+         paint_add_temporary(state, x, y, state->mode);
+         render_state(state);
+         update_ui_undo_redo(state);
+         break;
++      case SWAPPY_PAINT_MODE_TEXT:
++        paint_text_press(state, x, y);
++        render_state(state);
++        update_ui_undo_redo(state);
++        break;
+       default:
+         return;
+     }
+@@ -638,7 +746,9 @@ void draw_area_motion_notify_handler(GtkWidget *widget, GdkEventMotion *event,
+ 
+   GdkDisplay *display = gdk_display_get_default();
+   GdkWindow *window = event->window;
+-  GdkCursor *crosshair = gdk_cursor_new_for_display(display, GDK_CROSSHAIR);
++  GdkCursorType shape = (state->mode == SWAPPY_PAINT_MODE_TEXT) ? GDK_XTERM
++                                                                : GDK_CROSSHAIR;
++  GdkCursor *crosshair = gdk_cursor_new_for_display(display, shape);
+   gdk_window_set_cursor(window, crosshair);
+ 
+   gboolean is_button1_pressed = event->state & GDK_BUTTON1_MASK;
+@@ -657,7 +767,7 @@ void draw_area_motion_notify_handler(GtkWidget *widget, GdkEventMotion *event,
+       break;
+     case SWAPPY_PAINT_MODE_TEXT:
+       if (is_button1_pressed) {
+-        paint_update_temporary_text_clip(state, x, y);
++        paint_text_motion(state, x, y);
+         render_state(state);
+       }
+       break;
+@@ -681,10 +791,7 @@ void draw_area_button_release_handler(GtkWidget *widget, GdkEventButton *event,
+       commit_state(state);
+       break;
+     case SWAPPY_PAINT_MODE_TEXT:
+-      if (state->temp_paint && !state->temp_paint->can_draw) {
+-        paint_free(state->temp_paint);
+-        state->temp_paint = NULL;
+-      }
++      paint_text_release(state);
+       break;
+     default:
+       return;
+@@ -781,7 +888,11 @@ static void compute_window_size_and_scaling_factor(struct swappy_state *state) {
    state->window->x = workarea.x;
    state->window->y = workarea.y;
  
@@ -1343,3 +1813,729 @@ index 975e572..9327e63 100644
    double scaling_factor = 1.0;
  
    int image_width = gdk_pixbuf_get_width(state->original_image);
+@@ -904,6 +1015,12 @@ static bool load_layout(struct swappy_state *state) {
+       GTK_BUTTON(gtk_builder_get_object(builder, "stroke-size-button"));
+   state->ui->text_size =
+       GTK_BUTTON(gtk_builder_get_object(builder, "text-size-button"));
++  state->ui->help_overlay =
++      GTK_WIDGET(gtk_builder_get_object(builder, "help-overlay"));
++  state->ui->stroke_size_box =
++      GTK_WIDGET(gtk_builder_get_object(builder, "stroke-size-box"));
++  state->ui->text_size_box =
++      GTK_WIDGET(gtk_builder_get_object(builder, "text-size-box"));
+   state->ui->transparency =
+       GTK_BUTTON(gtk_builder_get_object(builder, "transparency-button"));
+   state->ui->transparency_plus =
+@@ -988,6 +1105,7 @@ static bool init_gtk_window(struct swappy_state *state) {
+ 
+   update_ui_stroke_size_widget(state);
+   update_ui_text_size_widget(state);
++  update_ui_size_steppers(state);
+   update_ui_transparency_widget(state);
+   update_ui_undo_redo(state);
+   update_ui_panel_toggle_button(state);
+diff --git a/src/paint.c b/src/paint.c
+index 8b882fc..b72be95 100644
+--- a/src/paint.c
++++ b/src/paint.c
+@@ -4,18 +4,20 @@
+ #include <stdio.h>
+ 
+ #include "gtk/gtk.h"
++#include "text.h"
+ #include "util.h"
+ 
+-static void cursor_move_backward(struct swappy_paint_text *text) {
+-  if (text->cursor > 0) {
+-    text->cursor--;
++static struct swappy_paint_text *editing_text(struct swappy_state *state) {
++  if (state->temp_paint == NULL ||
++      state->temp_paint->type != SWAPPY_PAINT_MODE_TEXT) {
++    return NULL;
+   }
++
++  return &state->temp_paint->content.text;
+ }
+ 
+-static void cursor_move_forward(struct swappy_paint_text *text) {
+-  if (text->cursor < g_utf8_strlen(text->text, -1)) {
+-    text->cursor++;
+-  }
++gboolean paint_text_is_editing(struct swappy_state *state) {
++  return editing_text(state) != NULL;
+ }
+ 
+ void paint_free(gpointer data) {
+@@ -128,7 +130,10 @@ void paint_add_temporary(struct swappy_state *state, double x, double y,
+         paint->content.shape.operation = SWAPPY_PAINT_SHAPE_OPERATION_STROKE;
+       break;
+     case SWAPPY_PAINT_MODE_TEXT:
+-      paint->can_draw = false;
++      /* Ready the moment it exists. Upstream needed a drag to give the run a
++         box before it would draw anything, so a plain click -- the obvious
++         gesture -- placed nothing at all. */
++      paint->can_draw = true;
+ 
+       paint->content.text.from.x = x;
+       paint->content.text.from.y = y;
+@@ -142,6 +147,9 @@ void paint_add_temporary(struct swappy_state *state, double x, double y,
+       paint->content.text.mode = SWAPPY_TEXT_MODE_EDIT;
+       paint->content.text.text = g_new(gchar, 1);
+       paint->content.text.text[0] = '\0';
++      paint->content.text.to.x = x;
++      paint->content.text.to.y = y;
++      gtk_im_context_focus_in(state->ui->im_context);
+       break;
+ 
+     default:
+@@ -212,78 +220,216 @@ void paint_update_temporary_str(struct swappy_state *state, char *str) {
+   text->cursor += g_utf8_strlen(str, -1);
+ }
+ 
+-void paint_update_temporary_text(struct swappy_state *state,
+-                                 GdkEventKey *event) {
+-  struct swappy_paint *paint = state->temp_paint;
+-  struct swappy_paint_text *text;
+-  char *new_text;
+-  char buffer[32];
+-  guint32 unicode;
++static void text_delete_range(struct swappy_paint_text *text, glong from,
++                              glong to) {
++  gchar *head, *tail, *joined;
+ 
+-  if (!paint || paint->type != SWAPPY_PAINT_MODE_TEXT) {
+-    g_warning("trying to update text but not in text mode");
++  if (from == to) {
+     return;
+   }
+ 
+-  text = &paint->content.text;
++  if (from > to) {
++    glong swap = from;
++    from = to;
++    to = swap;
++  }
++
++  head = g_utf8_substring(text->text, 0, from);
++  tail = g_utf8_substring(text->text, to, g_utf8_strlen(text->text, -1));
++  joined = g_strconcat(head, tail, NULL);
++
++  g_free(head);
++  g_free(tail);
++  g_free(text->text);
++
++  text->text = joined;
++  text->cursor = from;
++}
++
++void paint_text_press(struct swappy_state *state, double x, double y) {
++  struct swappy_paint_text *text = editing_text(state);
++  GList *elem;
++
++  state->text_pressed_at.x = x;
++  state->text_pressed_at.y = y;
++  state->text_dragging = false;
++
++  /* Clicking inside the run being typed only moves the caret -- it does not
++     end the run and start another one on top of it. */
++  if (text != NULL && text_hit(text, x, y)) {
++    text->cursor = text_offset_at(text, x, y);
++    state->text_grab.x = x - text->from.x;
++    state->text_grab.y = y - text->from.y;
++    return;
++  }
++
++  paint_commit_temporary(state);
++
++  /* Otherwise pick up whatever run is under the pointer. state->paints is
++     newest first, which is also front to back, so the first hit is the one
++     drawn on top. Being able to retype and drag a run after the fact is the
++     difference between annotating and getting exactly one attempt at it. */
++  for (elem = state->paints; elem != NULL; elem = elem->next) {
++    struct swappy_paint *paint = elem->data;
++
++    if (paint->type != SWAPPY_PAINT_MODE_TEXT || !paint->can_draw) {
++      continue;
++    }
++    if (!text_hit(&paint->content.text, x, y)) {
++      continue;
++    }
++
++    state->paints = g_list_remove_link(state->paints, elem);
++    g_list_free_1(elem);
++
++    paint->is_committed = false;
++    text = &paint->content.text;
++    text->mode = SWAPPY_TEXT_MODE_EDIT;
++    text->cursor = text_offset_at(text, x, y);
++
++    state->temp_paint = paint;
++    state->text_grab.x = x - text->from.x;
++    state->text_grab.y = y - text->from.y;
++
++    gtk_im_context_focus_in(state->ui->im_context);
++    return;
++  }
++
++  paint_add_temporary(state, x, y, SWAPPY_PAINT_MODE_TEXT);
++  state->text_grab.x = 0;
++  state->text_grab.y = 0;
++}
++
++void paint_text_motion(struct swappy_state *state, double x, double y) {
++  struct swappy_paint_text *text = editing_text(state);
++
++  if (text == NULL) {
++    return;
++  }
++
++  /* A little slop before a press turns into a move, so placing the caret
++     with a slightly shaky hand does not nudge the run sideways. */
++  if (!state->text_dragging) {
++    if (ABS(x - state->text_pressed_at.x) < 3 &&
++        ABS(y - state->text_pressed_at.y) < 3) {
++      return;
++    }
++    state->text_dragging = true;
++  }
++
++  text->from.x = x - state->text_grab.x;
++  text->from.y = y - state->text_grab.y;
++  text->to = text->from;
++}
++
++void paint_text_release(struct swappy_state *state) {
++  state->text_dragging = false;
++}
++
++void paint_text_restyle(struct swappy_state *state) {
++  struct swappy_paint_text *text = editing_text(state);
++  double a;
++
++  if (text == NULL) {
++    return;
++  }
++
++  a = state->settings.a;
++  if (state->config->transparent) a *= (1 - state->settings.tr / 100.0);
++
++  text->r = state->settings.r;
++  text->g = state->settings.g;
++  text->b = state->settings.b;
++  text->a = a;
++  text->s = state->settings.t;
++}
++
++gboolean paint_text_key(struct swappy_state *state, GdkEventKey *event) {
++  struct swappy_paint_text *text = editing_text(state);
++  gboolean ctrl = event->state & GDK_CONTROL_MASK;
++  guint32 unicode;
++  char buffer[8];
++  glong len;
++  int dir;
++
++  if (text == NULL) {
++    return FALSE;
++  }
++
++  len = g_utf8_strlen(text->text, -1);
+ 
+   switch (event->keyval) {
+     case GDK_KEY_Escape:
++      /* Finish the run and stay in the editor. Only a second Escape, with
++         nothing being typed, throws the shot away. */
+       paint_commit_temporary(state);
+-      break;
++      return TRUE;
++    case GDK_KEY_Return:
++    case GDK_KEY_KP_Enter:
++      /* Ctrl+Enter is the one-key finish; leave it to the window. */
++      if (ctrl) {
++        return FALSE;
++      }
++      paint_update_temporary_str(state, "\n");
++      return TRUE;
+     case GDK_KEY_BackSpace:
+-      if (g_utf8_strlen(text->text, -1) > 0) {
+-        new_text = string_remove_at(text->text, text->cursor - 1);
+-        g_free(text->text);
+-        text->text = new_text;
+-        cursor_move_backward(text);
++      if (ctrl) {
++        text_delete_range(text, text_offset_by_word(text, text->cursor, -1),
++                          text->cursor);
++      } else if (text->cursor > 0) {
++        text_delete_range(text, text->cursor - 1, text->cursor);
+       }
+-      break;
++      return TRUE;
+     case GDK_KEY_Delete:
+-      if (g_utf8_strlen(text->text, -1) > 0) {
+-        new_text = string_remove_at(text->text, text->cursor);
+-        g_free(text->text);
+-        text->text = new_text;
++      if (ctrl) {
++        text_delete_range(text, text->cursor,
++                          text_offset_by_word(text, text->cursor, 1));
++      } else if (text->cursor < len) {
++        text_delete_range(text, text->cursor, text->cursor + 1);
+       }
+-      break;
++      return TRUE;
+     case GDK_KEY_Left:
+-      cursor_move_backward(text);
+-      break;
+     case GDK_KEY_Right:
+-      cursor_move_forward(text);
+-      break;
+-    case GDK_KEY_V:
+-      cursor_move_forward(text);
+-      break;
++      dir = (event->keyval == GDK_KEY_Left) ? -1 : 1;
++      text->cursor = ctrl ? text_offset_by_word(text, text->cursor, dir)
++                          : text_offset_by_char(text, text->cursor, dir);
++      return TRUE;
++    case GDK_KEY_Up:
++    case GDK_KEY_Down:
++      dir = (event->keyval == GDK_KEY_Up) ? -1 : 1;
++      text->cursor = text_offset_by_line(text, text->cursor, dir);
++      return TRUE;
++    case GDK_KEY_Home:
++      text->cursor = ctrl ? 0 : text_offset_line_edge(text, text->cursor, -1);
++      return TRUE;
++    case GDK_KEY_End:
++      text->cursor = ctrl ? len : text_offset_line_edge(text, text->cursor, 1);
++      return TRUE;
+     default:
+-      unicode = gdk_keyval_to_unicode(event->keyval);
+-      if (unicode != 0) {
+-        int ll = g_unichar_to_utf8(unicode, buffer);
+-        buffer[ll] = '\0';
+-        char *new_text =
+-            string_insert_chars_at(text->text, buffer, text->cursor);
+-        g_free(text->text);
+-        text->text = new_text;
+-        text->cursor++;
+-      }
+       break;
+   }
+-}
+ 
+-void paint_update_temporary_text_clip(struct swappy_state *state, gdouble x,
+-                                      gdouble y) {
+-  struct swappy_paint *paint = state->temp_paint;
++  /* Ctrl+S, Ctrl+Z and the rest still belong to the window. */
++  if (ctrl) {
++    return FALSE;
++  }
+ 
+-  if (!paint) {
+-    return;
++  /* The input method gets first refusal, so compose sequences, dead keys and
++     non-Latin keyboards produce what they should. Upstream went straight to
++     gdk_keyval_to_unicode and so could only ever type what a bare keyval
++     happens to mean -- and typed a stray carriage return for Enter. */
++  if (gtk_im_context_filter_keypress(state->ui->im_context, event)) {
++    return TRUE;
+   }
+ 
+-  g_assert(paint->type == SWAPPY_PAINT_MODE_TEXT);
++  unicode = gdk_keyval_to_unicode(event->keyval);
++  if (unicode != 0 && g_unichar_isprint(unicode)) {
++    buffer[g_unichar_to_utf8(unicode, buffer)] = '\0';
++    paint_update_temporary_str(state, buffer);
++    return TRUE;
++  }
+ 
+-  paint->can_draw = true;
+-  paint->content.text.to.x = x;
+-  paint->content.text.to.y = y;
+-  gtk_im_context_focus_in(state->ui->im_context);
++  return FALSE;
+ }
+ 
+ void paint_commit_temporary(struct swappy_state *state) {
+diff --git a/src/render.c b/src/render.c
+index 6a371be..c9c35e0 100644
+--- a/src/render.c
++++ b/src/render.c
+@@ -5,6 +5,7 @@
+ 
+ #include "algebra.h"
+ #include "swappy.h"
++#include "text.h"
+ #include "util.h"
+ 
+ #define pango_layout_t PangoLayout
+@@ -167,72 +168,75 @@ cleanup:
+   return final;
+ }
+ 
+-static void convert_pango_rectangle_to_swappy_box(pango_rectangle_t rectangle,
+-                                                  struct swappy_box *box) {
+-  if (!box) {
+-    return;
+-  }
+-
+-  box->x = pango_units_to_double(rectangle.x);
+-  box->y = pango_units_to_double(rectangle.y);
+-  box->width = pango_units_to_double(rectangle.width);
+-  box->height = pango_units_to_double(rectangle.height);
+-}
+ 
+ static void render_text(cairo_t *cr, struct swappy_paint_text text,
+                         struct swappy_state *state) {
+-  char pango_font[255];
+-  double x = fmin(text.from.x, text.to.x);
+-  double y = fmin(text.from.y, text.to.y);
+-  double w = fabs(text.from.x - text.to.x);
+-  double h = fabs(text.from.y - text.to.y);
+-
+-  cairo_surface_t *surface =
+-      cairo_image_surface_create(CAIRO_FORMAT_ARGB32, w, h);
+-  cairo_t *crt = cairo_create(surface);
+-
+-  pango_layout_t *layout = pango_cairo_create_layout(crt);
+-  pango_layout_set_text(layout, text.text, -1);
+-  g_snprintf(pango_font, 255, "%s %d", text.font, (int)text.s);
+-  pango_font_description_t *desc =
+-      pango_font_description_from_string(pango_font);
+-  pango_layout_set_width(layout, pango_units_from_double(w));
+-  pango_layout_set_font_description(layout, desc);
+-  pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
+-  pango_font_description_free(desc);
++  PangoLayout *layout = text_layout_new(&text);
++  struct swappy_box extents;
++  double halo;
++
++  /* Drawn straight onto the image at its natural size. Upstream rendered
++     into a surface the size of the box the mouse had dragged out, which
++     clipped the run: type past the corner and the words simply stopped
++     appearing. */
++  text_extents(&text, &extents);
++
++  cairo_save(cr);
++  cairo_move_to(cr, text.from.x, text.from.y);
++
++  /* Annotation lands on whatever the screenshot happened to contain, so the
++     glyphs carry their own dark outline. Without it, red on a dark window or
++     white on a light one is a guess. */
++  halo = MAX(1.2, text.s * 0.055);
++  pango_cairo_layout_path(cr, layout);
++  cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
++  cairo_set_line_width(cr, halo * 2);
++  cairo_set_source_rgba(cr, 0, 0, 0, 0.5 * text.a);
++  cairo_stroke_preserve(cr);
++  cairo_set_source_rgba(cr, text.r, text.g, text.b, text.a);
++  cairo_fill(cr);
+ 
+   if (text.mode == SWAPPY_TEXT_MODE_EDIT) {
+-    pango_rectangle_t strong_pos;
+-    struct swappy_box cursor_box;
+-    cairo_set_source_rgba(cr, 0.5, 0.5, 0.5, 0.3);
+-    cairo_set_line_width(cr, 5);
+-    cairo_rectangle(cr, x, y, w, h);
++    struct swappy_box cursor;
++    const double pad = 4;
++
++    /* A thin dashed frame marks the run being typed -- enough to see where
++       it ends and what a drag would pick up, faint enough not to be mistaken
++       for something that will be saved into the image. */
++    double dashes[] = {4.0, 4.0};
++    cairo_set_line_width(cr, 1);
++    cairo_set_dash(cr, dashes, 2, 0);
++    cairo_rectangle(cr, extents.x - pad, extents.y - pad,
++                    extents.width + pad * 2, extents.height + pad * 2);
++    cairo_set_source_rgba(cr, 0, 0, 0, 0.45);
++    cairo_stroke_preserve(cr);
++    cairo_set_source_rgba(cr, 1, 1, 1, 0.75);
++    cairo_set_dash(cr, dashes, 2, 4.0);
+     cairo_stroke(cr);
+-    glong bytes_til_cursor = string_get_nb_bytes_until(text.text, text.cursor);
+-    pango_layout_get_cursor_pos(layout, bytes_til_cursor, &strong_pos, NULL);
+-    convert_pango_rectangle_to_swappy_box(strong_pos, &cursor_box);
+-    cairo_move_to(crt, cursor_box.x, cursor_box.y);
+-    cairo_set_source_rgba(crt, 0.3, 0.3, 0.3, 1);
+-    cairo_line_to(crt, cursor_box.x, cursor_box.y + cursor_box.height);
+-    cairo_stroke(crt);
+-    GdkRectangle area = {x + cursor_box.x, y + cursor_box.y + cursor_box.height,
+-                         0, 0};
+-    gtk_im_context_set_cursor_location(state->ui->im_context, &area);
+-  }
+-
+-  cairo_rectangle(crt, 0, 0, w, h);
+-  cairo_set_source_rgba(crt, text.r, text.g, text.b, text.a);
+-  cairo_move_to(crt, 0, 0);
+-  pango_cairo_show_layout(crt, layout);
++    cairo_set_dash(cr, NULL, 0, 0);
++
++    /* The caret gets the same treatment as the glyphs: a dark backing so it
++       is findable on any screenshot, then the text colour on top. */
++    text_cursor_extents(&text, &cursor);
++    cairo_set_source_rgba(cr, 0, 0, 0, 0.6);
++    cairo_rectangle(cr, cursor.x - 1.5, cursor.y - 1.5, cursor.width + 3,
++                    cursor.height + 3);
++    cairo_fill(cr);
++    cairo_set_source_rgba(cr, text.r, text.g, text.b, 1);
++    cairo_rectangle(cr, cursor.x, cursor.y, cursor.width, cursor.height);
++    cairo_fill(cr);
+ 
+-  cairo_set_source_surface(cr, surface, x, y);
+-  cairo_paint(cr);
++    if (state->ui->im_context) {
++      GdkRectangle area = {cursor.x, cursor.y, cursor.width, cursor.height};
++      gtk_im_context_set_cursor_location(state->ui->im_context, &area);
++    }
++  }
+ 
+-  cairo_destroy(crt);
+-  cairo_surface_destroy(surface);
++  cairo_restore(cr);
+   g_object_unref(layout);
+ }
+ 
++
+ static void render_shape_arrow(cairo_t *cr, struct swappy_paint_shape shape) {
+   cairo_set_source_rgba(cr, shape.r, shape.g, shape.b, shape.a);
+   cairo_set_line_width(cr, shape.w);
+diff --git a/src/text.c b/src/text.c
+new file mode 100644
+index 0000000..9328de2
+--- /dev/null
++++ b/src/text.c
+@@ -0,0 +1,235 @@
++#include "text.h"
++
++#include <string.h>
++
++/* One PangoContext for the whole program. It comes from the cairo font map,
++   so a layout built here can be handed straight to pango_cairo_show_layout:
++   the run is measured and drawn by the same object, which is the only way
++   the caret lands exactly where the glyphs do. */
++static PangoContext *text_context(void) {
++  static PangoContext *context = NULL;
++
++  if (context == NULL) {
++    context = pango_font_map_create_context(pango_cairo_font_map_get_default());
++  }
++
++  return context;
++}
++
++static const gchar *text_str(const struct swappy_paint_text *text) {
++  return text->text ? text->text : "";
++}
++
++static glong text_length(const struct swappy_paint_text *text) {
++  return g_utf8_strlen(text_str(text), -1);
++}
++
++static glong clamp_offset(const struct swappy_paint_text *text, glong offset) {
++  glong len = text_length(text);
++
++  if (offset < 0) return 0;
++  if (offset > len) return len;
++  return offset;
++}
++
++static int offset_to_index(const struct swappy_paint_text *text,
++                           glong offset) {
++  const gchar *str = text_str(text);
++  return (int)(g_utf8_offset_to_pointer(str, clamp_offset(text, offset)) - str);
++}
++
++static glong index_to_offset(const struct swappy_paint_text *text, int index) {
++  const gchar *str = text_str(text);
++  glong bytes = (glong)strlen(str);
++
++  if (index < 0) index = 0;
++  if (index > bytes) index = bytes;
++
++  return g_utf8_pointer_to_offset(str, str + index);
++}
++
++PangoLayout *text_layout_new(const struct swappy_paint_text *text) {
++  char font[256];
++  PangoLayout *layout = pango_layout_new(text_context());
++  PangoFontDescription *desc;
++
++  /* No width is set on purpose: the run grows with what is typed and wraps
++     only where there is a newline. Upstream wrapped into the box the mouse
++     had dragged out and clipped whatever did not fit, so text could vanish
++     as it was typed. */
++  pango_layout_set_text(layout, text_str(text), -1);
++
++  g_snprintf(font, sizeof(font), "%s %d", text->font ? text->font : "Sans",
++             (int)text->s);
++  desc = pango_font_description_from_string(font);
++  pango_layout_set_font_description(layout, desc);
++  pango_font_description_free(desc);
++
++  return layout;
++}
++
++gboolean text_is_empty(const struct swappy_paint_text *text) {
++  return text_length(text) == 0;
++}
++
++void text_extents(const struct swappy_paint_text *text,
++                  struct swappy_box *box) {
++  PangoLayout *layout = text_layout_new(text);
++  PangoRectangle logical;
++
++  pango_layout_get_pixel_extents(layout, NULL, &logical);
++
++  box->x = text->from.x + logical.x;
++  box->y = text->from.y + logical.y;
++  box->width = MAX(logical.width, 2);
++  box->height = MAX(logical.height, 2);
++
++  g_object_unref(layout);
++}
++
++void text_cursor_extents(const struct swappy_paint_text *text,
++                         struct swappy_box *box) {
++  PangoLayout *layout = text_layout_new(text);
++  PangoRectangle strong;
++
++  pango_layout_get_cursor_pos(layout, offset_to_index(text, text->cursor),
++                              &strong, NULL);
++
++  box->x = text->from.x + pango_units_to_double(strong.x);
++  box->y = text->from.y + pango_units_to_double(strong.y);
++  box->width = 2;
++  box->height = MAX(pango_units_to_double(strong.height), 2);
++
++  g_object_unref(layout);
++}
++
++gboolean text_hit(const struct swappy_paint_text *text, double x, double y) {
++  /* A few pixels of slack around the run: annotation text is often small,
++     and asking for a pixel-perfect click on a thin glyph row is the kind of
++     thing that makes a tool feel broken. */
++  const int slack = 6;
++  struct swappy_box box;
++
++  text_extents(text, &box);
++
++  return x >= box.x - slack && x <= box.x + box.width + slack &&
++         y >= box.y - slack && y <= box.y + box.height + slack;
++}
++
++glong text_offset_at(const struct swappy_paint_text *text, double x,
++                     double y) {
++  PangoLayout *layout = text_layout_new(text);
++  int index = 0;
++  int trailing = 0;
++  glong offset;
++
++  /* Returns FALSE for a point outside the run but still fills in the nearest
++     position, which is exactly what clicking past the end of a line should
++     do. */
++  pango_layout_xy_to_index(layout, pango_units_from_double(x - text->from.x),
++                           pango_units_from_double(y - text->from.y), &index,
++                           &trailing);
++
++  offset = index_to_offset(text, index) + trailing;
++
++  g_object_unref(layout);
++
++  return clamp_offset(text, offset);
++}
++
++glong text_offset_by_char(const struct swappy_paint_text *text, glong cursor,
++                          int dir) {
++  return clamp_offset(text, cursor + (dir < 0 ? -1 : 1));
++}
++
++glong text_offset_by_word(const struct swappy_paint_text *text, glong cursor,
++                          int dir) {
++  PangoLayout *layout = text_layout_new(text);
++  const PangoLogAttr *attrs;
++  gint n_attrs = 0;
++  glong len = text_length(text);
++  glong i = clamp_offset(text, cursor);
++
++  /* One attribute per character plus one past the end, so the array indexes
++     by the same character offsets the cursor uses. */
++  attrs = pango_layout_get_log_attrs_readonly(layout, &n_attrs);
++
++  /* Backwards lands on the start of a word, forwards on the end of one --
++     the same asymmetry every text field has, and the reason Ctrl+Backspace
++     takes the word plus the space in front of it rather than the space
++     alone. */
++  if (dir < 0) {
++    for (i--; i > 0; i--) {
++      if (i < n_attrs && attrs[i].is_word_start) {
++        break;
++      }
++    }
++  } else {
++    for (i++; i < len; i++) {
++      if (i < n_attrs && attrs[i].is_word_end) {
++        break;
++      }
++    }
++  }
++
++  g_object_unref(layout);
++
++  return clamp_offset(text, i);
++}
++
++glong text_offset_by_line(const struct swappy_paint_text *text, glong cursor,
++                          int dir) {
++  PangoLayout *layout = text_layout_new(text);
++  PangoLayoutLine *line;
++  int line_no = 0;
++  int x_pos = 0;
++  int index = 0;
++  int trailing = 0;
++  int target;
++  glong offset;
++
++  pango_layout_index_to_line_x(layout, offset_to_index(text, cursor), FALSE,
++                               &line_no, &x_pos);
++  target = line_no + (dir < 0 ? -1 : 1);
++
++  if (target < 0) {
++    offset = 0;
++  } else if (target >= pango_layout_get_line_count(layout)) {
++    offset = text_length(text);
++  } else {
++    /* Keep the horizontal position across the move, the way every text field
++       does -- the caret comes back to the same column. */
++    line = pango_layout_get_line_readonly(layout, target);
++    pango_layout_line_x_to_index(line, x_pos, &index, &trailing);
++    offset = index_to_offset(text, index) + trailing;
++  }
++
++  g_object_unref(layout);
++
++  return clamp_offset(text, offset);
++}
++
++glong text_offset_line_edge(const struct swappy_paint_text *text, glong cursor,
++                            int dir) {
++  PangoLayout *layout = text_layout_new(text);
++  PangoLayoutLine *line;
++  int line_no = 0;
++  int x_pos = 0;
++  glong offset;
++
++  pango_layout_index_to_line_x(layout, offset_to_index(text, cursor), FALSE,
++                               &line_no, &x_pos);
++  line = pango_layout_get_line_readonly(layout, line_no);
++
++  if (line == NULL) {
++    offset = dir < 0 ? 0 : text_length(text);
++  } else if (dir < 0) {
++    offset = index_to_offset(text, line->start_index);
++  } else {
++    offset = index_to_offset(text, line->start_index + line->length);
++  }
++
++  g_object_unref(layout);
++
++  return clamp_offset(text, offset);
++}

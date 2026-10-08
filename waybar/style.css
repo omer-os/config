@@ -1,10 +1,18 @@
-/* ── Terminal green on near-black ────────────────────────────── */
-@define-color bg       #050a05;
-@define-color text     #00ff5f;
-@define-color subtext  #35c95a;
-@define-color muted    #1c6b33;
-@define-color warn     #9dff2e;
-@define-color crit     #ff5555;
+/* ── Ember forest: orange leaves on dark bark ────────────────────────────
+   Five steps of grey carry every state; colour is reserved for the two
+   things that actually need it, warnings and failures. */
+@define-color bg       #110c0a;
+@define-color text     #efe3d6;
+@define-color subtext  #c2a791;
+@define-color muted    #6e5646;
+/* Icon glyphs sit one step below their values, so a row of icons reads as
+   chrome and the numbers next to them read as content. */
+@define-color icon     #a3826a;
+/* Hover fill and the hairlines that separate the clusters. */
+@define-color hover    #211713;
+@define-color line     #2e2019;
+@define-color warn     #e0b341;
+@define-color crit     #ff5f57;
 
 * {
   font-family: "JetBrainsMono Nerd Font";
@@ -19,10 +27,23 @@
   margin: 0;
 }
 
-/* One solid bar, edge to edge. */
+/* One solid bar, edge to edge. The hairline underneath is the only
+   decoration: without it the bar dissolves into dark windows. */
 window#waybar {
   background: @bg;
   color: @subtext;
+  border-bottom: 1px solid @line;
+}
+
+/* Right-side controls ease instead of snapping; 140ms is short enough
+   that the bar still feels instant under the cursor. The workspace slots
+   are deliberately left out -- they repaint on every window and workspace
+   change, and fading those repaints reads as lag. */
+#clock,
+#backlight, #pulseaudio, #bluetooth, #network, #battery,
+#custom-language, #custom-claude, #custom-update, #custom-phone,
+#custom-kill, #custom-power {
+  transition: background 140ms ease, color 140ms ease;
 }
 
 /* ── Workspaces (live window titles, one module each) ────────────
@@ -39,13 +60,18 @@ window#waybar {
 /* First slot sits a touch closer to the screen edge. */
 #custom-ws1 { padding-left: 5px; }
 
+/* The active slot is an inset pill rather than a full-height block: the
+   4px vertical margin lifts it off the bar edges and the radius softens
+   it, while the horizontal padding stays untouched so nothing shifts. */
 #custom-ws1.active, #custom-ws2.active, #custom-ws3.active,
 #custom-ws4.active, #custom-ws5.active, #custom-ws6.active,
 #custom-ws7.active, #custom-ws8.active, #custom-ws9.active,
 #custom-ws10.active {
-  background: @text;
-  color: @bg;
+  background: #4a2616;
+  color: #ffb57a;
   font-weight: 600;
+  margin: 4px 0;
+  border-radius: 6px;
 }
 
 #custom-ws1.empty, #custom-ws2.empty, #custom-ws3.empty,
@@ -60,16 +86,18 @@ window#waybar {
 #custom-ws4:hover, #custom-ws5:hover, #custom-ws6:hover,
 #custom-ws7:hover, #custom-ws8:hover, #custom-ws9:hover,
 #custom-ws10:hover {
-  background: #0d1f10;
+  background: @hover;
   color: @text;
+  margin: 4px 0;
+  border-radius: 6px;
 }
 
 #custom-ws1.active:hover, #custom-ws2.active:hover, #custom-ws3.active:hover,
 #custom-ws4.active:hover, #custom-ws5.active:hover, #custom-ws6.active:hover,
 #custom-ws7.active:hover, #custom-ws8.active:hover, #custom-ws9.active:hover,
 #custom-ws10.active:hover {
-  background: @text;
-  color: @bg;
+  background: #5a2e1a;
+  color: #ffc89a;
 }
 
 /* ── Clock ───────────────────────────────────────────────────── */
@@ -78,7 +106,11 @@ window#waybar {
   font-weight: 600;
   padding: 0 12px;
 }
-#clock:hover { background: #0d1f10; }
+#clock:hover {
+  background: @hover;
+  margin: 4px 0;
+  border-radius: 6px;
+}
 
 /* ── Right-side modules (flat) ───────────────────────────────── */
 #privacy,
@@ -99,12 +131,17 @@ window#waybar {
   padding: 0 9px;
 }
 
-/* Icon-only controls a touch wider so the glyphs breathe. */
+/* Icon-only controls a touch wider so the glyphs breathe, and one shade
+   down from the values beside them -- icons are chrome, numbers are data. */
 #backlight,
 #pulseaudio,
-#bluetooth { padding: 0 8px; }
+#bluetooth {
+  padding: 0 8px;
+  color: @icon;
+}
 
-/* Hover: brighten to full green. */
+/* Hover: brighten to full green and pick up the same inset pill the
+   workspaces use, so every clickable thing on the bar reacts alike. */
 #backlight:hover,
 #pulseaudio:hover,
 #bluetooth:hover,
@@ -113,7 +150,15 @@ window#waybar {
 #custom-language:hover,
 #custom-claude:hover,
 #custom-update:hover,
-#custom-phone:hover { color: @text; }
+#custom-kill:hover,
+#custom-phone:hover,
+#custom-power:hover {
+  color: @text;
+  background: @hover;
+  margin: 4px 0;
+  border-radius: 6px;
+}
+
 
 /* ── States ──────────────────────────────────────────────────── */
 #custom-language.ar               { color: @text; font-weight: 700; }
@@ -147,9 +192,10 @@ window#waybar {
 #custom-kill.on     { color: @subtext; }
 #custom-kill:hover  { color: @crit; }
 
+
 @keyframes recording-pulse {
   0%   { color: @crit; }
-  50%  { color: #7a2020; }
+  50%  { color: #6e2a28; }
   100% { color: @crit; }
 }
 #custom-claude.ok                 { color: @subtext; }
@@ -184,15 +230,30 @@ window#waybar {
 #custom-power:hover  { color: @crit; }
 
 #tray { padding: 0 6px; }
-#tray menu { background: @bg; }
+#tray menu {
+  background: @bg;
+  border: 1px solid @line;
+  border-radius: 8px;
+  padding: 4px;
+}
+#tray menu menuitem {
+  color: @subtext;
+  padding: 4px 10px;
+  border-radius: 5px;
+}
+#tray menu menuitem:hover {
+  background: @hover;
+  color: @text;
+}
 
 /* ── Tooltips ────────────────────────────────────────────────── */
 tooltip {
   background: @bg;
-  border: 1px solid @muted;
-  padding: 4px 6px;
+  border: 1px solid @line;
+  border-radius: 8px;
+  padding: 8px 10px;
 }
 tooltip label {
-  color: @text;
+  color: @subtext;
   font-family: "JetBrainsMono Nerd Font";
 }

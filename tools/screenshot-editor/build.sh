@@ -2,11 +2,16 @@
 # Builds the screenshot editor that ALT+S / ALT+SHIFT+S open: upstream swappy
 # with floating-toolbar.patch on top, installed as ~/.local/bin/swappy-mini.
 #
-# The patch does three things the packaged swappy cannot be configured into:
+# The patch does what the packaged swappy cannot be configured into:
 #   * one floating toolbar over the image, instead of a side panel and a
 #     header bar that between them ate a third of the window
 #   * Enter saves and quits (upstream only binds Ctrl+S)
 #   * a fullscreen shot opens at two thirds of the screen, not three quarters
+#   * a text tool that behaves like a text field: click to place (upstream
+#     needed a drag, and clipped whatever ran past the box), click a run to
+#     retype or drag it, newlines, word and line motion, a caret and glyphs
+#     outlined so they read on any screenshot, and input-method support
+#   * F1 or ? shows the keys
 #
 # Re-run it after editing the patch, or to move to a newer upstream: bump
 # COMMIT, run, and fix the patch if it no longer applies. The distro package

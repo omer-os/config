@@ -152,11 +152,11 @@ def scoped_limits(data):
 
 
 BAR_CELLS = 12
-COL_TEXT = "#00ff5f"
-COL_SUB = "#35c95a"
-COL_MUTED = "#1c6b33"
-COL_WARN = "#9dff2e"
-COL_CRIT = "#ff5555"
+COL_TEXT = "#ededf0"
+COL_SUB = "#a8a8b0"
+COL_MUTED = "#5c5c66"
+COL_WARN = "#e0b341"
+COL_CRIT = "#ff5f57"
 
 
 def colour_for(p):

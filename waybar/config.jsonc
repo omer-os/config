@@ -30,16 +30,16 @@
     "custom/power"
   ],
 
-  "custom/ws1":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 1",  "on-click": "~/.config/hypr/scripts/workspace.py focus 1",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 1",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
-  "custom/ws2":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 2",  "on-click": "~/.config/hypr/scripts/workspace.py focus 2",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 2",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
-  "custom/ws3":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 3",  "on-click": "~/.config/hypr/scripts/workspace.py focus 3",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 3",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
-  "custom/ws4":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 4",  "on-click": "~/.config/hypr/scripts/workspace.py focus 4",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 4",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
-  "custom/ws5":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 5",  "on-click": "~/.config/hypr/scripts/workspace.py focus 5",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 5",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
-  "custom/ws6":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 6",  "on-click": "~/.config/hypr/scripts/workspace.py focus 6",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 6",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
-  "custom/ws7":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 7",  "on-click": "~/.config/hypr/scripts/workspace.py focus 7",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 7",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
-  "custom/ws8":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 8",  "on-click": "~/.config/hypr/scripts/workspace.py focus 8",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 8",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
-  "custom/ws9":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 9",  "on-click": "~/.config/hypr/scripts/workspace.py focus 9",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 9",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
-  "custom/ws10": { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 10", "on-click": "~/.config/hypr/scripts/workspace.py focus 10", "on-click-right": "~/.config/hypr/scripts/workspace.py move 10", "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws1":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 1",  "on-click": "~/.config/hypr/scripts/workspace.py focus 1",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 1", "on-click-middle": "~/.config/hypr/scripts/workspace.py close 1",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws2":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 2",  "on-click": "~/.config/hypr/scripts/workspace.py focus 2",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 2", "on-click-middle": "~/.config/hypr/scripts/workspace.py close 2",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws3":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 3",  "on-click": "~/.config/hypr/scripts/workspace.py focus 3",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 3", "on-click-middle": "~/.config/hypr/scripts/workspace.py close 3",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws4":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 4",  "on-click": "~/.config/hypr/scripts/workspace.py focus 4",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 4", "on-click-middle": "~/.config/hypr/scripts/workspace.py close 4",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws5":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 5",  "on-click": "~/.config/hypr/scripts/workspace.py focus 5",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 5", "on-click-middle": "~/.config/hypr/scripts/workspace.py close 5",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws6":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 6",  "on-click": "~/.config/hypr/scripts/workspace.py focus 6",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 6", "on-click-middle": "~/.config/hypr/scripts/workspace.py close 6",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws7":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 7",  "on-click": "~/.config/hypr/scripts/workspace.py focus 7",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 7", "on-click-middle": "~/.config/hypr/scripts/workspace.py close 7",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws8":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 8",  "on-click": "~/.config/hypr/scripts/workspace.py focus 8",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 8", "on-click-middle": "~/.config/hypr/scripts/workspace.py close 8",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws9":  { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 9",  "on-click": "~/.config/hypr/scripts/workspace.py focus 9",  "on-click-right": "~/.config/hypr/scripts/workspace.py move 9", "on-click-middle": "~/.config/hypr/scripts/workspace.py close 9",  "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
+  "custom/ws10": { "format": "{}", "return-type": "json", "escape": false, "exec": "~/.config/waybar/scripts/workspaces.py 10", "on-click": "~/.config/hypr/scripts/workspace.py focus 10", "on-click-right": "~/.config/hypr/scripts/workspace.py move 10", "on-click-middle": "~/.config/hypr/scripts/workspace.py close 10", "on-scroll-up": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e+1' })\"", "on-scroll-down": "hyprctl dispatch \"hl.dsp.focus({ workspace = 'e-1' })\"" },
 
   // ── Clock ─────────────────────────────────────────────────────────
   // Left click opens the notification centre -- that's where the bell used
@@ -51,10 +51,10 @@
       "mode": "month",
       "on-scroll": 1,
       "format": {
-        "months":   "<span color='#35c95a'><b>{}</b></span>",
-        "days":     "<span color='#35c95a'>{}</span>",
-        "weekdays": "<span color='#00ff5f'><b>{}</b></span>",
-        "today":    "<span color='#00ff5f'><b>{}</b></span>"
+        "months":   "<span color='#a8a8b0'><b>{}</b></span>",
+        "days":     "<span color='#a8a8b0'>{}</span>",
+        "weekdays": "<span color='#ededf0'><b>{}</b></span>",
+        "today":    "<span color='#ededf0'><b>{}</b></span>"
       }
     },
     "on-click": "swaync-client -t -sw",
@@ -113,8 +113,10 @@
     "format-linked": "{ifname}",
     "format-disconnected": "offline",
     "max-length": 16,
-    "tooltip-format-wifi": "{essid}   {signalStrength}%\nclick: pick network   middle: toggle wifi   right: settings",
-    "tooltip-format-ethernet": "{ifname}   connected\nclick: pick network   right: settings",
+    // 5s tick so the up/down rates in the tooltip actually move.
+    "interval": 5,
+    "tooltip-format-wifi": "{essid}   {signalStrength}%  ({signaldBm} dBm)   {frequency} GHz\n\nIP       {ipaddr}/{cidr}\nGateway  {gwaddr}\nIface    {ifname}\nDown     {bandwidthDownBits}\nUp       {bandwidthUpBits}\n\nclick: pick network   middle: toggle wifi   right: settings",
+    "tooltip-format-ethernet": "{ifname}   connected\n\nIP       {ipaddr}/{cidr}\nGateway  {gwaddr}\nDown     {bandwidthDownBits}\nUp       {bandwidthUpBits}\n\nclick: pick network   right: settings",
     "tooltip-format-disconnected": "No connection\nclick: pick network   middle: toggle wifi",
     "on-click": "kitty --class nmtui-float -e nmtui",
     "on-click-middle": "~/.config/waybar/scripts/actions.sh wifi",

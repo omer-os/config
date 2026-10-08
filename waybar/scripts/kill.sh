@@ -78,10 +78,10 @@ case "${1:-status}" in
 
   status)
     n=$(inventory | wc -l)
-    tooltip="<span foreground='#00ff5f'><b>Force stop</b></span>  <span foreground='#35c95a'>${n} running</span>"
-    tooltip+="\n\n<span foreground='#1c6b33'>click</span> <span foreground='#35c95a'>pick what to stop</span>"
-    tooltip+="\n<span foreground='#1c6b33'>right</span> <span foreground='#35c95a'>kill focused window</span>"
-    tooltip+="\n<span foreground='#1c6b33'>middle</span> <span foreground='#ff5555'>stop everything</span>"
+    tooltip="<span foreground='#ededf0'><b>Force stop</b></span>  <span foreground='#a8a8b0'>${n} running</span>"
+    tooltip+="\n\n<span foreground='#5c5c66'>click</span> <span foreground='#a8a8b0'>pick what to stop</span>"
+    tooltip+="\n<span foreground='#5c5c66'>right</span> <span foreground='#a8a8b0'>kill focused window</span>"
+    tooltip+="\n<span foreground='#5c5c66'>middle</span> <span foreground='#ff5f57'>stop everything</span>"
     printf '{"text":"󱎘","tooltip":"%s","class":"%s"}\n' "$tooltip" "$([[ $n -gt 0 ]] && echo on || echo off)"
     ;;
 

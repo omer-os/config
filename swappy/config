@@ -5,8 +5,11 @@
 #
 # Enter (or Ctrl+S) saves into save_dir and quits; screenshot.sh mirrors that
 # file to the clipboard afterwards, so one key still does both. Ctrl+C copies
-# only. Escape or q throws the shot away. The Enter bind comes from the local
-# build in tools/screenshot-editor -- upstream swappy has no such key.
+# only. Escape or q throws the shot away. While text is being typed Enter is a
+# newline and Escape only finishes the run, so neither gesture can lose work
+# mid-sentence: Ctrl+Enter is the save-and-quit from there. F1 or ? lists the
+# keys. All of that comes from the local build in tools/screenshot-editor --
+# upstream swappy has none of it.
 [Default]
 save_dir=$HOME/Pictures/screenshots
 save_filename_format=%Y-%m-%d_%H-%M-%S.png

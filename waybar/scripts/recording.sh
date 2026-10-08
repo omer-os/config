@@ -37,9 +37,9 @@ else
 	head="Recording"
 fi
 
-tooltip="<span foreground='#ff5555'><b>${head}</b></span>  <span foreground='#00ff5f'>${clock}</span>"
-[[ -n $out ]] && tooltip+="\n<span foreground='#1c6b33'>${out}</span>"
-tooltip+="\n\n<span foreground='#1c6b33'>click</span> <span foreground='#35c95a'>save</span>"
-tooltip+="   <span foreground='#1c6b33'>right</span> <span foreground='#35c95a'>pause/resume</span>"
+tooltip="<span foreground='#ff5f57'><b>${head}</b></span>  <span foreground='#ededf0'>${clock}</span>"
+[[ -n $out ]] && tooltip+="\n<span foreground='#5c5c66'>${out}</span>"
+tooltip+="\n\n<span foreground='#5c5c66'>click</span> <span foreground='#a8a8b0'>save</span>"
+tooltip+="   <span foreground='#5c5c66'>right</span> <span foreground='#a8a8b0'>pause/resume</span>"
 
 printf '{"text":"%s %s","tooltip":"%s","class":"%s"}\n' "$icon" "$clock" "$tooltip" "$status"

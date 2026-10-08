@@ -7,7 +7,9 @@
 # Neither bind writes a file on its own: the shot opens in the editor first,
 # where Enter saves it -- and this script copies that same file to the
 # clipboard, so one key does what the bare hyprshot binds used to. Ctrl+C
-# copies without saving; Escape throws the shot away.
+# copies without saving; Escape throws the shot away. While text is being
+# typed those two mean something else -- Enter is a newline, Escape finishes
+# the run -- so Ctrl+Enter is the finish from there. F1 lists the keys.
 #
 # Everything here is picked for latency. grim and slurp are driven directly
 # rather than through hyprshot, which cost a flat second per shot in fixed

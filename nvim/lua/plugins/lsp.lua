@@ -9,6 +9,9 @@ return {
   {
     "neovim/nvim-lspconfig",
     opts = {
+      -- Inline type hints (`: string`, `: number`, ...) break up long lines and
+      -- get in the way once wrap is on. Toggle back per buffer with <leader>uh.
+      inlay_hints = { enabled = false },
       servers = {
         svelte = {},
         tailwindcss = {},

@@ -2,7 +2,8 @@ hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
 hl.env("_JAVA_AWT_WM_NONREPARENTING", "1")
 hl.on("hyprland.start", function()
-	hl.exec_cmd("hyprpaper")
+	-- awww draws the background; the choice lives in hypr/wallpapers/.current.
+	hl.exec_cmd("~/.config/hypr/scripts/wallpaper.sh")
 	hl.exec_cmd("waybar")
 	hl.exec_cmd("swaync")
 	-- App launcher daemon. Runs hidden and is toggled over IPC by ALT + R,
@@ -29,6 +30,32 @@ hl.monitor({
 	position = "auto",
 	scale = "auto",
 })
+-- ALT + SHIFT + D turns the laptop screen off (scripts/toggle-eDP.sh) and
+-- leaves a flag file naming it. Honour that here, otherwise every config
+-- reload would switch the screen back on. Only while another monitor is up,
+-- so a stale flag can never leave us with nothing to look at.
+do
+	local dir, sig = os.getenv("XDG_RUNTIME_DIR"), os.getenv("HYPRLAND_INSTANCE_SIGNATURE")
+	local flag = dir and sig and io.open(dir .. "/hypr/" .. sig .. "/laptop-screen-off")
+	if flag then
+		local panel = flag:read("l")
+		flag:close()
+		local others = 0
+		for _, m in ipairs(hl.get_monitors()) do
+			if m.name ~= panel and m.name ~= "FALLBACK" then
+				others = others + 1
+			end
+		end
+		if panel and others > 0 then
+			hl.monitor({ output = panel, disabled = true })
+		end
+	end
+end
+-- If the last external monitor is unplugged while the laptop screen is off,
+-- bring the laptop screen back instead of sitting on a dead session.
+hl.on("monitor.removed", function()
+	hl.exec_cmd("$HOME/.config/hypr/scripts/toggle-eDP.sh rescue")
+end)
 
 local terminal = "kitty"
 local fileManager = "nautilus"
@@ -40,27 +67,45 @@ hl.env("HYPRCURSOR_SIZE", "24")
 
 hl.config({
 	general = {
-		gaps_in = 0,
-		gaps_out = 0,
+		gaps_in = 5,
+		gaps_out = 10,
 		border_size = 1,
 		col = {
-			active_border = "rgba(1f8a44ff)",
-			inactive_border = "rgba(0d2415ff)",
+			active_border = "rgba(f0782d90)",
+			inactive_border = "rgba(c2a79118)",
 		},
 		resize_on_border = false,
 		allow_tearing = false,
 		layout = "dwindle",
 	},
-	-- Flat and opaque: no blur, no shadows, no transparency, square corners.
+	-- Frosted glass: rounded, see-through windows over a heavy blur of the
+	-- wallpaper, with a thin light border and a soft shadow to lift them off it.
+	-- Unfocused windows fade more so the active one stands out. Fullscreen
+	-- (games, video) stays fully opaque.
 	decoration = {
-		rounding = 0,
-		active_opacity = 1.0,
-		inactive_opacity = 1.0,
+		rounding = 6,
+		active_opacity = 0.86,
+		inactive_opacity = 0.76,
+		fullscreen_opacity = 1.0,
 		shadow = {
-			enabled = false,
+			enabled = true,
+			range = 24,
+			render_power = 3,
+			color = "rgba(00000070)",
+			color_inactive = "rgba(00000040)",
 		},
 		blur = {
-			enabled = false,
+			enabled = true,
+			size = 10,
+			passes = 4,
+			noise = 0.015,
+			contrast = 1.0,
+			brightness = 0.85,
+			vibrancy = 0.3,
+			vibrancy_darkness = 0.2,
+			popups = true,
+			new_optimizations = true,
+			xray = false,
 		},
 	},
 	animations = {
@@ -159,7 +204,7 @@ hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(menu))
 -- Pauses the recording if one is running, otherwise falls back to pseudo.
 hl.bind(mainMod .. " + P", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/screenrecord.sh pause"))
 hl.bind(mainMod .. " + T", hl.dsp.layout("togglesplit"))
--- Zen mode: hide waybar and window borders for distraction-free focus.
+-- Zen mode: just the windows -- no waybar, borders, gaps, blur or transparency.
 hl.bind(mainMod .. " + Z", hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/zen.sh"))
 
 hl.bind(mainMod .. " + H", hl.dsp.focus({ direction = "left" }))
@@ -333,4 +378,13 @@ hl.window_rule({
 	idle_inhibit = "fullscreen",
 	border_size = 0,
 	rounding = 0,
+})
+
+-- Kitty draws its own translucent background (background_opacity in
+-- kitty.conf), so keep the window itself fully opaque -- otherwise the text
+-- fades along with the background.
+hl.window_rule({
+	name = "kitty-glass",
+	match = { class = "^kitty$" },
+	opacity = "1.0 override 1.0 override",
 })

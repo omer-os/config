@@ -16,11 +16,13 @@ The effect the user asked for:
 Usage:
     workspace.py focus <n>   -- go to workspace n
     workspace.py move  <n>   -- move the active window to workspace n (and follow)
+    workspace.py close <n>   -- close every window on workspace n and drop it
 """
 
 import json
 import subprocess
 import sys
+import time
 
 
 def hyprctl_json(*args):
@@ -30,9 +32,47 @@ def hyprctl_json(*args):
     return json.loads(out.stdout)
 
 
+def close_workspace(n, clients, workspaces):
+    """Close every window on workspace n, then let the workspace itself go."""
+    for c in clients:
+        if c.get("workspace", {}).get("id") == n:
+            subprocess.run(
+                ["hyprctl", "dispatch",
+                 f"hl.dsp.window.close({{ window = 'address:{c['address']}' }})"],
+                timeout=2,
+            )
+
+    # Drop the sticky rule so Hyprland can destroy it once it's empty.
+    subprocess.run(
+        ["hyprctl", "eval",
+         f'hl.workspace_rule({{ workspace = "{n}", persistent = false }})'],
+        timeout=2,
+    )
+
+    # An active workspace is never destroyed, so step off it onto the nearest
+    # other workspace in use. Give apps a moment to actually close first.
+    try:
+        active = hyprctl_json("activeworkspace").get("id")
+    except Exception:
+        return
+    if active != n:
+        return
+    time.sleep(0.3)
+    others = [
+        w.get("id", 0) for w in hyprctl_json("workspaces")
+        if w.get("id", 0) >= 1 and w.get("id") != n
+    ]
+    if others:
+        target = min(others, key=lambda w: (abs(w - n), w > n))
+        subprocess.run(
+            ["hyprctl", "dispatch", f"hl.dsp.focus({{ workspace = '{target}' }})"],
+            timeout=2,
+        )
+
+
 def main():
-    if len(sys.argv) != 3 or sys.argv[1] not in ("focus", "move"):
-        sys.exit("usage: workspace.py focus|move <n>")
+    if len(sys.argv) != 3 or sys.argv[1] not in ("focus", "move", "close"):
+        sys.exit("usage: workspace.py focus|move|close <n>")
     action = sys.argv[1]
     try:
         n = int(sys.argv[2])
@@ -46,6 +86,10 @@ def main():
         workspaces = hyprctl_json("workspaces")
     except Exception:
         clients, workspaces = [], []
+
+    if action == "close":
+        close_workspace(n, clients, workspaces)
+        return
 
     # Window count per regular workspace.
     counts = {}

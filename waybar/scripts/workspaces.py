@@ -24,7 +24,7 @@ import sys
 from html import escape
 
 # ── palette (keep in sync with style.css) ────────────────────────────────
-IDLE_IDX = "#1c6b33"
+IDLE_IDX = "#5c5c66"
 
 MAX_TITLE = 22
 
